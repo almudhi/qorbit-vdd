@@ -38,7 +38,7 @@ function initSpaceBg() {
 }
 initSpaceBg();
 
-// ── الثقب الأسود الواقعي ──────────────────────────────────
+// ── الثقب الأسود — نمط NASA واقعي ───────────────────────
 function initBlackHole() {
   const bg = document.getElementById('spaceBg');
   if (!bg) return;
@@ -53,164 +53,144 @@ function initBlackHole() {
   resize();
   window.addEventListener('resize', resize);
 
-  const BH_XF = 0.80, BH_YF = 0.72, TILT = 0.30;
-  let t = 0;
+  // موضع الثقب — يمين سفلي بعيداً عن المحتوى
+  const BH_XF = 0.81, BH_YF = 0.71;
+  // ميل القرص (0=حافة،1=مواجهة) — مثل صور EHT
+  const DISK_TILT = 0.25;
+  let time = 0;
 
-  // جسيمات مدارية
-  const PARTS = Array.from({length: 110}, () => spawnPart({}));
+  /* ── لون البلازما (درجة حرارة من الداخل للخارج)
+     تشبه صور ناسا: أبيض ← أصفر ← برتقالي ← أحمر داكن  */
+  function plasmaColor(t) {
+    if (t < 0.12) return [255, 255, Math.round(240 - t/0.12 * 60)];
+    if (t < 0.32) { const m=(t-0.12)/0.20; return [255,Math.round(255-m*65),Math.round(180-m*170)]; }
+    if (t < 0.60) { const m=(t-0.32)/0.28; return [255,Math.round(190-m*100),Math.round(10-m*5)]; }
+    const m=(t-0.60)/0.40; return [Math.round(255-m*95),Math.round(90-m*72),5];
+  }
+
+  /* ── جسيمات تنجذب بشكل حلزوني ── */
+  const NPARTS = 90;
+  const parts  = Array.from({length:NPARTS}, ()=>spawnPart({}));
   function spawnPart(p) {
-    const a = Math.random() * Math.PI * 2;
-    const r = 140 + Math.random() * 270;
-    p.a = a; p.r = r;
-    p.da = (0.009 + Math.random() * 0.013) * (Math.random() < 0.5 ? 1 : -1);
-    p.dr = -(0.12 + Math.random() * 0.25);
-    p.life = 0; p.maxLife = 170 + Math.random() * 220;
-    p.sz = 0.5 + Math.random() * 1.1;
-    p.warm = Math.random() < 0.65;
+    const a = Math.random()*Math.PI*2, r = 160+Math.random()*260;
+    p.a=a; p.r=r;
+    p.da = 0.010+Math.random()*0.010;
+    p.dr = -(0.20+Math.random()*0.35);
+    p.life=0; p.maxLife=150+Math.random()*220;
+    p.sz=0.6+Math.random()*1.1;
     return p;
   }
 
-  // لون القرص حسب درجة الحرارة (t=0 داخلي ساخن، t=1 خارجي بارد)
-  function diskColor(tr) {
-    if (tr < 0.22) {
-      const m = tr / 0.22;
-      return [255, Math.round(245 - m * 30), 255];
-    } else if (tr < 0.50) {
-      const m = (tr - 0.22) / 0.28;
-      return [255, Math.round(215 - m * 110), Math.round(225 - m * 210)];
-    } else if (tr < 0.75) {
-      const m = (tr - 0.50) / 0.25;
-      return [255, Math.round(105 - m * 55), 15];
-    } else {
-      const m = (tr - 0.75) / 0.25;
-      return [Math.round(255 - m * 95), Math.round(50 - m * 35), 15];
-    }
-  }
+  /* ── رسم نصف القرص (أمامي أو خلفي مُعدَّل بالجاذبية) ── */
+  function drawDisk(isFront) {
+    const cx=W*BH_XF, cy=H*BH_YF, R=Math.min(W,H)*0.074;
+    const inner=R*1.48, outer=R*5.20, RINGS=60;
 
-  function drawDiskHalf(isfront) {
-    const cx = W * BH_XF, cy = H * BH_YF;
-    const R = Math.min(W, H) * 0.068;
-    const inner = R * 1.42, outer = R * 4.7;
-    const RINGS = 52;
+    // النصف الخلفي يظهر مضغوطاً فوق الظل (تأثير الانحناء الضوئي)
+    const yScl   = isFront ? DISK_TILT : DISK_TILT * 0.42;
+    const clipY  = isFront ? 0         : -(outer * 0.85);
+    const clipH  = isFront ? outer*2   : outer * 0.85;
+    const aBase  = isFront ? 0.26      : 0.11;
+    const dStrn  = isFront ? 0.52      : 0.20;
 
     ctx.save();
     ctx.translate(cx, cy);
+    ctx.beginPath(); ctx.rect(-outer*2, clipY, outer*4, clipH); ctx.clip();
+    ctx.scale(1, yScl);
 
-    // قص النصف المطلوب قبل التحجيم
-    ctx.beginPath();
-    if (isfront) ctx.rect(-outer * 1.6, 0,         outer * 3.2, outer * 1.6);
-    else          ctx.rect(-outer * 1.6, -outer * 1.6, outer * 3.2, outer * 1.6);
-    ctx.clip();
-
-    // تحجيم y لتشكيل الإهليج
-    ctx.scale(1, TILT);
-
-    // رسم الحلقات المتحدة المركز
-    for (let i = 0; i <= RINGS; i++) {
-      const tr = i / RINGS;
-      const r  = inner + tr * (outer - inner);
-      const [rv, gv, bv] = diskColor(tr);
-      const alpha = (1 - tr * 0.74) * (isfront ? 0.20 : 0.10);
-      ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(${rv},${gv},${bv},${alpha})`;
-      ctx.lineWidth   = (outer - inner) / RINGS * 1.12;
-      ctx.stroke();
+    // حلقات البلازما المتدرجة اللون
+    for (let i=0; i<RINGS; i++) {
+      const tr = i/(RINGS-1);
+      const r  = inner + tr*(outer-inner);
+      const lw = (outer-inner)/RINGS * 1.20;
+      const [rv,gv,bv] = plasmaColor(tr);
+      // سطوع يتناقص مع البعد عن المركز
+      const bright = Math.pow(1-tr*0.78, 1.4) * aBase;
+      ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
+      ctx.strokeStyle = `rgba(${rv},${gv},${bv},${bright.toFixed(3)})`;
+      ctx.lineWidth = lw; ctx.stroke();
     }
 
-    // إضاءة دوبلر — نقطة ساطعة تدور مع القرص
-    const dA  = -t;
-    const dGx = Math.cos(dA) * (inner + outer) * 0.42;
-    const dGy = Math.sin(dA) * (inner + outer) * 0.42;
-    const dg  = ctx.createRadialGradient(dGx, dGy, 0, dGx, dGy, outer * 0.62);
-    dg.addColorStop(0,   `rgba(255,210,80,${isfront ? 0.22 : 0.10})`);
-    dg.addColorStop(0.45,`rgba(255,130,20,${isfront ? 0.09 : 0.04})`);
-    dg.addColorStop(1,   'transparent');
+    // تأثير دوبلر الدوراني — الجانب المقترب أشد إضاءةً بكثير
+    const dA  = -time;
+    const dBx = Math.cos(dA)*(inner*0.5+outer*0.5);
+    const dBy = Math.sin(dA)*(inner*0.5+outer*0.5);
+    const dg  = ctx.createRadialGradient(dBx,dBy,0, dBx,dBy, outer*0.72);
+    dg.addColorStop(0,    `rgba(255,220,100,${dStrn})`);
+    dg.addColorStop(0.30, `rgba(255,150,30,${dStrn*0.55})`);
+    dg.addColorStop(0.60, `rgba(240,70,8,${dStrn*0.18})`);
+    dg.addColorStop(1,    'transparent');
     ctx.beginPath();
-    ctx.arc(0, 0, outer, 0, Math.PI * 2, false);
-    ctx.arc(0, 0, inner, 0, Math.PI * 2, true);
-    ctx.fillStyle = dg;
-    ctx.fill('evenodd');
+    ctx.arc(0,0,outer,0,Math.PI*2,false);
+    ctx.arc(0,0,inner,0,Math.PI*2,true);
+    ctx.fillStyle=dg; ctx.fill('evenodd');
+
+    // توهج الحافة الداخلية الساخنة (كورونا البلازما)
+    const ig = ctx.createRadialGradient(0,0,inner*0.88, 0,0,inner*1.6);
+    ig.addColorStop(0,   `rgba(255,255,200,${isFront?0.30:0.10})`);
+    ig.addColorStop(0.45,`rgba(255,200,80,${isFront?0.12:0.04})`);
+    ig.addColorStop(1,   'transparent');
+    ctx.fillStyle=ig; ctx.beginPath(); ctx.arc(0,0,inner*1.6,0,Math.PI*2); ctx.fill();
 
     ctx.restore();
   }
 
+  /* ── حلقة الرسم الرئيسية ── */
   function draw() {
-    ctx.clearRect(0, 0, W, H);
-    const cx = W * BH_XF, cy = H * BH_YF;
-    const R  = Math.min(W, H) * 0.068;
+    ctx.clearRect(0,0,W,H);
+    const cx=W*BH_XF, cy=H*BH_YF, R=Math.min(W,H)*0.074;
 
-    // ─ 1. توهج الجاذبية الخارجي (طبقات)
-    for (let i = 3; i >= 1; i--) {
-      const g = ctx.createRadialGradient(cx, cy, R, cx, cy, R * i * 2.8);
-      g.addColorStop(0,   `rgba(55,15,120,${0.14 / i})`);
-      g.addColorStop(0.5, `rgba(20,8,80,${0.07 / i})`);
-      g.addColorStop(1,   'transparent');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(cx, cy, R * i * 2.8, 0, Math.PI * 2); ctx.fill();
-    }
+    // 1 ▸ توهج البيئة المحيطة (دفيء برتقالي-بنفسجي)
+    const env = ctx.createRadialGradient(cx,cy+R*0.6,R*0.5, cx,cy,R*7.5);
+    env.addColorStop(0,   'rgba(200,90,15,0.13)');
+    env.addColorStop(0.25,'rgba(140,55,8,0.07)');
+    env.addColorStop(0.55,'rgba(50,15,5,0.04)');
+    env.addColorStop(1,   'transparent');
+    ctx.fillStyle=env; ctx.beginPath(); ctx.arc(cx,cy,R*7.5,0,Math.PI*2); ctx.fill();
 
-    // ─ 2. قرص التراكم — النصف الخلفي
-    drawDiskHalf(false);
+    // 2 ▸ القرص الخلفي (مُعدَّل بالجاذبية — يظهر فوق الظل)
+    drawDisk(false);
 
-    // ─ 3. حلقة الفوتونات (نابضة)
-    const pulse = 0.18 + Math.sin(t * 2.1) * 0.07;
-    const ph = ctx.createRadialGradient(cx, cy, R * 0.88, cx, cy, R * 1.38);
-    ph.addColorStop(0,    'transparent');
-    ph.addColorStop(0.52, `rgba(185,225,255,${pulse})`);
-    ph.addColorStop(0.72, `rgba(100,175,255,${pulse * 0.45})`);
-    ph.addColorStop(1,    'transparent');
-    ctx.fillStyle = ph;
-    ctx.beginPath(); ctx.arc(cx, cy, R * 1.38, 0, Math.PI * 2); ctx.fill();
+    // 3 ▸ توهج حدود الظل (منطقة حلقة الفوتونات)
+    const bdry = ctx.createRadialGradient(cx,cy,R*0.92, cx,cy,R*1.55);
+    const bdp  = 0.14+Math.sin(time*2.0)*0.04;
+    bdry.addColorStop(0,    'transparent');
+    bdry.addColorStop(0.42, `rgba(255,185,55,${bdp*1.3})`);
+    bdry.addColorStop(0.65, `rgba(255,110,18,${bdp})`);
+    bdry.addColorStop(0.84, `rgba(200,55,5,${bdp*0.45})`);
+    bdry.addColorStop(1,    'transparent');
+    ctx.fillStyle=bdry; ctx.beginPath(); ctx.arc(cx,cy,R*1.55,0,Math.PI*2); ctx.fill();
 
-    // ─ 4. أفق الحدث (أسود مطلق)
-    const eh = ctx.createRadialGradient(cx - R * 0.2, cy - R * 0.14, 0, cx, cy, R * 1.10);
-    eh.addColorStop(0,    '#000'); eh.addColorStop(0.80, '#000');
-    eh.addColorStop(0.92, 'rgba(0,0,0,.88)'); eh.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = eh;
-    ctx.beginPath(); ctx.arc(cx, cy, R * 1.10, 0, Math.PI * 2); ctx.fill();
+    // 4 ▸ الظل (أفق الحدث — أسود مطلق)
+    const ehG = ctx.createRadialGradient(cx-R*0.16,cy-R*0.11,0, cx,cy,R*1.09);
+    ehG.addColorStop(0,   '#000'); ehG.addColorStop(0.82,'#000');
+    ehG.addColorStop(0.94,'rgba(0,0,0,0.88)'); ehG.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=ehG; ctx.beginPath(); ctx.arc(cx,cy,R*1.09,0,Math.PI*2); ctx.fill();
 
-    // ─ 5. قرص التراكم — النصف الأمامي (فوق أفق الحدث)
-    drawDiskHalf(true);
+    // 5 ▸ القرص الأمامي (فوق الظل، مضيء، يُرى مباشرةً)
+    drawDisk(true);
 
-    // ─ 6. نفاثتان نسبيتان (Relativistic Jets)
-    for (const jDir of [-1, 1]) {
-      const jLen  = R * 5.8;
-      const jW    = R * 0.14;
-      const jpul  = 0.20 + Math.sin(t * 1.85 + jDir * 1.2) * 0.07;
-      const jg    = ctx.createLinearGradient(cx, cy, cx, cy + jDir * jLen);
-      jg.addColorStop(0,   `rgba(175,225,255,${jpul})`);
-      jg.addColorStop(0.38,`rgba(80,145,255,${jpul * 0.42})`);
-      jg.addColorStop(0.72,`rgba(30,75,200,${jpul * 0.14})`);
-      jg.addColorStop(1,   'transparent');
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(cx - jW, cy - jDir * R * 0.88);
-      ctx.bezierCurveTo(cx - jW * 0.35, cy + jDir * jLen * 0.33,
-                        cx - jW * 0.08,  cy + jDir * jLen * 0.70, cx, cy + jDir * jLen);
-      ctx.bezierCurveTo(cx + jW * 0.08,  cy + jDir * jLen * 0.70,
-                        cx + jW * 0.35,  cy + jDir * jLen * 0.33, cx + jW, cy - jDir * R * 0.88);
-      ctx.closePath();
-      ctx.fillStyle = jg; ctx.fill();
-      ctx.restore();
-    }
+    // 6 ▸ حلقة الفوتونات الرفيعة (photon ring) — ميزة صور EHT الأساسية
+    ctx.save();
+    ctx.shadowColor='rgba(255,210,70,0.95)'; ctx.shadowBlur=16;
+    ctx.beginPath(); ctx.arc(cx,cy,R*1.03,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,220,90,${0.38+Math.sin(time*2.6)*0.10})`;
+    ctx.lineWidth=2.2; ctx.stroke();
+    ctx.restore();
 
-    // ─ 7. جسيمات مدارية
-    PARTS.forEach(p => {
-      p.life++; p.a += p.da; p.r += p.dr * 0.07;
-      if (p.life >= p.maxLife || p.r < 28) { spawnPart(p); return; }
-      const frac  = p.life / p.maxLife;
-      const px    = cx + Math.cos(p.a) * p.r;
-      const py    = cy + Math.sin(p.a) * p.r * TILT;
-      const alpha = Math.sin(frac * Math.PI) * 0.48;
-      ctx.beginPath(); ctx.arc(px, py, p.sz * (1 - frac * 0.5), 0, Math.PI * 2);
-      ctx.fillStyle = p.warm
-        ? `rgba(255,${Math.round(115 + frac * 55)},25,${alpha})`
-        : `rgba(75,${Math.round(148 + frac * 52)},255,${alpha})`;
-      ctx.fill();
+    // 7 ▸ جسيمات البلازما المتدفقة
+    parts.forEach(p=>{
+      p.life++; p.a+=p.da; p.r+=p.dr*0.060;
+      if(p.life>=p.maxLife||p.r<R*1.35){spawnPart(p);return;}
+      const fr=p.life/p.maxLife;
+      const px=cx+Math.cos(p.a)*p.r, py=cy+Math.sin(p.a)*p.r*DISK_TILT;
+      const al=Math.sin(fr*Math.PI)*0.55;
+      const [rv,gv,bv]=plasmaColor(Math.random()*0.6);
+      ctx.beginPath(); ctx.arc(px,py,p.sz*(1-fr*0.45),0,Math.PI*2);
+      ctx.fillStyle=`rgba(${rv},${gv},${bv},${al})`; ctx.fill();
     });
 
-    t += 0.006;
+    time+=0.0052;
     requestAnimationFrame(draw);
   }
   draw();
