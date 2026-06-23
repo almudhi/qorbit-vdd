@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QORBIT · كشف التشوه البصري</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     شاشة الترحيب
+══════════════════════════════════════════ -->
+<div class="ws" id="welcomeScreen">
+  <div class="ws-stars" aria-hidden="true"></div>
+  <div class="ws-nebula" aria-hidden="true"></div>
+
+  <div class="ws-content">
+    <!-- كوكب متحرك -->
+    <div class="ws-planet-wrap">
+      <div class="ws-orbit-ring"></div>
+      <svg class="ws-planet" viewBox="0 0 120 88" fill="none">
+        <defs>
+          <radialGradient id="wsPG" cx="42%" cy="35%" r="62%" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"  stop-color="#2a7fd4"/>
+            <stop offset="50%" stop-color="#0d3070"/>
+            <stop offset="100%" stop-color="#04060F"/>
+          </radialGradient>
+          <filter id="wsGlow">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <clipPath id="wsRBack"><rect x="0" y="0" width="120" height="55"/></clipPath>
+          <clipPath id="wsRFront"><rect x="0" y="55" width="120" height="33"/></clipPath>
+        </defs>
+        <circle cx="60" cy="44" r="44" fill="rgba(0,71,255,.18)"/>
+        <ellipse cx="60" cy="55" rx="56" ry="16" stroke="#00D4FF" stroke-width="2"
+                 fill="none" opacity="0.28" clip-path="url(#wsRBack)"/>
+        <circle cx="60" cy="44" r="28" fill="url(#wsPG)" filter="url(#wsGlow)"/>
+        <circle cx="60" cy="44" r="28" fill="none" stroke="rgba(0,212,255,.12)" stroke-width="4"/>
+        <ellipse cx="50" cy="35" rx="11" ry="8" fill="white" opacity="0.07" transform="rotate(-15 50 35)"/>
+        <ellipse cx="60" cy="55" rx="56" ry="16" stroke="#00D4FF" stroke-width="3"
+                 fill="none" opacity="0.95" clip-path="url(#wsRFront)"/>
+        <ellipse cx="60" cy="55" rx="56" ry="16" stroke="rgba(0,212,255,.22)" stroke-width="7"
+                 fill="none" clip-path="url(#wsRFront)"/>
+        <circle cx="106" cy="22" r="5.5" fill="#EDF2FF" opacity="0.72"/>
+        <circle cx="106" cy="22" r="9" fill="none" stroke="rgba(0,212,255,.3)" stroke-width="1.2"/>
+      </svg>
+      <div class="ws-moon-orbit"><div class="ws-moon"></div></div>
+    </div>
+
+    <!-- العنوان -->
+    <div class="ws-brand">
+      <h1 class="ws-title">QORBIT</h1>
+      <div class="ws-divider">
+        <span></span><span class="ws-div-dot"></span><span></span>
+      </div>
+      <p class="ws-tagline">النواة · المدار · الابتكار</p>
+    </div>
+
+    <!-- وصف -->
+    <div class="ws-desc">
+      <p class="ws-desc-main">نظام كشف التشوه البصري الذكي</p>
+      <p class="ws-desc-sub">مدعوم بنموذج YOLOv11 · تحليل ذكاء اصطناعي متقدم · قسم التقنية والابتكار</p>
+    </div>
+
+    <!-- إحصاءات سريعة -->
+    <div class="ws-stats">
+      <div class="ws-stat"><span class="ws-stat-n">11</span><span class="ws-stat-l">فئة مكتشفة</span></div>
+      <div class="ws-stat-sep"></div>
+      <div class="ws-stat"><span class="ws-stat-n">YOLOv11</span><span class="ws-stat-l">نموذج الكشف</span></div>
+      <div class="ws-stat-sep"></div>
+      <div class="ws-stat"><span class="ws-stat-n">DP</span><span class="ws-stat-l">تحليل المسار</span></div>
+    </div>
+
+    <!-- زر الدخول -->
+    <button class="ws-enter" id="wsEnterBtn">
+      <span>ابدأ الفحص</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4 10 16 10"/><polyline points="11 5 16 10 11 15"/>
+      </svg>
+    </button>
+
+    <p class="ws-hint">QORBIT TECH SOLUTIONS &nbsp;·&nbsp; v2.0 &nbsp;·&nbsp; 2025</p>
+  </div>
+
+  <!-- خط المسح المتحرك -->
+  <div class="ws-scan" aria-hidden="true"></div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     التطبيق الرئيسي
+══════════════════════════════════════════ -->
+<div class="app hidden" id="mainApp">
+
+  <!-- نجوم الخلفية -->
+  <div class="stars-bg" aria-hidden="true"></div>
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="hdr-inner">
+      <div class="qorbit-logo" id="backToWelcome" title="العودة للبداية" style="cursor:pointer">
+        <svg class="planet-svg" viewBox="0 0 80 58" fill="none">
+          <defs>
+            <radialGradient id="pg" cx="42%" cy="37%" r="63%" gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stop-color="#2a7fd4"/>
+              <stop offset="50%"  stop-color="#0d3070"/>
+              <stop offset="100%" stop-color="#04060F"/>
+            </radialGradient>
+            <clipPath id="rBack"><rect x="0" y="0" width="80" height="33"/></clipPath>
+            <clipPath id="rFront"><rect x="0" y="33" width="80" height="25"/></clipPath>
+          </defs>
+          <circle cx="40" cy="29" r="27" fill="rgba(0,71,255,.24)"/>
+          <ellipse cx="40" cy="33" rx="38" ry="11" stroke="#00D4FF" stroke-width="1.5"
+                   fill="none" opacity="0.32" clip-path="url(#rBack)"/>
+          <circle cx="40" cy="29" r="19" fill="url(#pg)"/>
+          <circle cx="40" cy="29" r="19" fill="none" stroke="rgba(0,212,255,.14)" stroke-width="3"/>
+          <ellipse cx="33" cy="22" rx="7" ry="5" fill="white" opacity="0.08" transform="rotate(-15 33 22)"/>
+          <ellipse cx="40" cy="33" rx="38" ry="11" stroke="#00D4FF" stroke-width="2.4"
+                   fill="none" opacity="1" clip-path="url(#rFront)"/>
+          <ellipse cx="40" cy="33" rx="38" ry="11" stroke="rgba(0,212,255,.22)" stroke-width="5"
+                   fill="none" clip-path="url(#rFront)"/>
+          <circle cx="72" cy="14" r="3.2" fill="#EDF2FF" opacity="0.75"/>
+          <circle cx="72" cy="14" r="5.5" fill="none" stroke="rgba(0,212,255,.3)" stroke-width="1"/>
+        </svg>
+        <div class="logo-text-block">
+          <span class="logo-wordmark">QORBIT</span>
+          <span class="logo-team">قسم التقنية والابتكار</span>
+        </div>
+      </div>
+
+      <!-- عداد الجلسة -->
+      <div class="session-bar">
+        <div class="session-item">
+          <span class="session-val" id="sessImages">0</span>
+          <span class="session-lbl">صور</span>
+        </div>
+        <div class="session-sep"></div>
+        <div class="session-item">
+          <span class="session-val" id="sessDets">0</span>
+          <span class="session-lbl">اكتشاف</span>
+        </div>
+        <div class="session-sep"></div>
+        <div class="session-item" id="sessHighRisk" style="display:none">
+          <span class="session-val danger" id="sessHigh">0</span>
+          <span class="session-lbl">خطر عالٍ</span>
+        </div>
+      </div>
+
+      <div class="status-row">
+        <div class="chip" id="chipYolo"><span class="dot"></span> YOLO</div>
+        <div class="chip" id="chipClaude"><span class="dot"></span> AI Vision</div>
+      </div>
+
+      <button class="settings-btn" id="settingsBtn" title="الإعدادات">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v2m0 16v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42
+                   M2 12h2m16 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+      </button>
+    </div>
+    <div class="brand-strip">النواة · المدار · الابتكار</div>
+  </header>
+
+  <!-- درج الإعدادات -->
+  <div class="settings-drawer hidden" id="settingsDrawer">
+    <div class="settings-inner">
+      <label class="field-label">مفتاح AI Vision API <span class="hint">(يُحفظ في المتصفح فقط)</span></label>
+      <div class="key-row">
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" dir="ltr"/>
+        <button id="saveKeyBtn">حفظ</button>
+      </div>
+      <p class="hint-text">أو اضبط <code>ANTHROPIC_API_KEY</code> كمتغير بيئة على السيرفر.</p>
+    </div>
+  </div>
+
+  <!-- ── المحتوى الرئيسي ── -->
+  <main>
+    <div class="grid">
+
+      <!-- يسار: رفع + معاينة -->
+      <section class="panel qorbit-panel" id="uploadPanel">
+        <div class="panel-title"><span class="panel-id">QRB-VDD</span>رفع الصورة</div>
+
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <polyline points="16 16 12 12 8 16"/>
+              <line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+            </svg>
+          </div>
+          <p class="upload-main">أسقط الصورة هنا أو <span class="link" id="browseLink">تصفّح</span></p>
+          <p class="upload-sub">JPEG · PNG · WebP · حتى 20 MB</p>
+          <input type="file" id="fileInput" accept="image/*" hidden/>
+        </div>
+
+        <div class="img-wrap hidden" id="imgWrap">
+          <div class="img-scan-overlay hidden" id="imgScanOverlay">
+            <div class="scan-bar"></div>
+          </div>
+          <img id="previewImg" src="" alt="معاينة"/>
+          <button class="reset-btn" id="resetBtn">✕ صورة جديدة</button>
+        </div>
+
+        <div class="img-meta hidden" id="imgMeta"></div>
+
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+      </section>
+
+      <!-- يمين: النتائج -->
+      <section class="panel qorbit-panel results-panel" id="resultsPanel">
+        <div class="panel-title"><span class="panel-id">SCAN</span>نتائج التحليل</div>
+
+        <div class="placeholder" id="placeholder">
+          <div class="placeholder-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+          <p>ارفع صورة لبدء الفحص</p>
+          <p class="placeholder-sub">النواة · المدار · الابتكار</p>
+        </div>
+
+        <div class="loader hidden" id="loader">
+          <div class="orbit-spin">
+            <div class="orbit-ring"></div>
+            <div class="orbit-dot"></div>
+          </div>
+          <p>جارٍ تحليل التشوهات…</p>
+          <p class="loader-sub">يعمل النموذج على الصورة</p>
+        </div>
+
+        <div class="results hidden" id="results"></div>
+
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+      </section>
+
+    </div>
+
+    <div class="footer-strip">
+      QORBIT TECH SOLUTIONS &nbsp;·&nbsp; Visual Distortion Detection System &nbsp;·&nbsp; v2.0 &nbsp;·&nbsp; 2025
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
