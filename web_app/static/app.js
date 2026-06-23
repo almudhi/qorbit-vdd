@@ -38,6 +38,158 @@ function initSpaceBg() {
 }
 initSpaceBg();
 
+// ── الثقب الأسود ─────────────────────────────────────────
+function initBlackHole() {
+  const bg = document.getElementById('spaceBg');
+  if (!bg) return;
+
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+  bg.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // الثقب في الجانب الأيمن السفلي — لا يتداخل مع المحتوى
+  const BH_XF = 0.78, BH_YF = 0.68;
+  let time = 0;
+
+  // جسيمات تنجذب نحو الثقب
+  const PARTICLES = Array.from({length: 90}, () => resetParticle({}));
+
+  function resetParticle(p) {
+    const a = Math.random() * Math.PI * 2;
+    const d = 200 + Math.random() * 350;
+    p.x  = Math.cos(a) * d;
+    p.y  = Math.sin(a) * d * 0.35;
+    p.vx = (-Math.cos(a) * 0.4) + (Math.sin(a) * 0.6);
+    p.vy = (-Math.sin(a) * 0.15) + (Math.cos(a) * 0.2);
+    p.life = 0;
+    p.maxLife = 120 + Math.random() * 180;
+    p.size = 0.8 + Math.random() * 1.4;
+    p.color = Math.random() < 0.5
+      ? `rgba(255,${Math.round(100+Math.random()*120)},30,`
+      : `rgba(80,${Math.round(150+Math.random()*100)},255,`;
+    return p;
+  }
+
+  function draw() {
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W * BH_XF, cy = H * BH_YF;
+    const R  = Math.min(W, H) * 0.068;  // نصف قطر أفق الحدث
+    const TILT = 0.28;                   // ميل قرص التراكم
+
+    // ── 1. توهج الجاذبية الخارجي
+    const outerGlow = ctx.createRadialGradient(cx, cy, R, cx, cy, R * 6);
+    outerGlow.addColorStop(0,   'rgba(80,30,160,0.28)');
+    outerGlow.addColorStop(0.35,'rgba(30,10,100,0.14)');
+    outerGlow.addColorStop(0.7, 'rgba(0,40,120,0.07)');
+    outerGlow.addColorStop(1,   'transparent');
+    ctx.fillStyle = outerGlow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── 2. قرص التراكم — النصف الخلفي
+    drawDisk(ctx, cx, cy, R, TILT, time, false);
+
+    // ── 3. أفق الحدث (الدائرة السوداء)
+    const bhGrad = ctx.createRadialGradient(cx - R*0.22, cy - R*0.18, 0, cx, cy, R * 1.18);
+    bhGrad.addColorStop(0,    '#000000');
+    bhGrad.addColorStop(0.78, '#000000');
+    bhGrad.addColorStop(0.9,  'rgba(0,0,0,.82)');
+    bhGrad.addColorStop(1.0,  'rgba(0,0,0,0)');
+    ctx.fillStyle = bhGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 1.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── 4. حلقة الفوتونات
+    const pulse = 0.28 + Math.sin(time * 1.8) * 0.08;
+    ctx.save();
+    ctx.shadowColor = 'rgba(130,200,255,.9)';
+    ctx.shadowBlur  = 18;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 1.04, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(150,210,255,${pulse})`;
+    ctx.lineWidth   = 2.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // ── 5. قرص التراكم — النصف الأمامي
+    drawDisk(ctx, cx, cy, R, TILT, time, true);
+
+    // ── 6. جسيمات التراكم
+    PARTICLES.forEach(p => {
+      p.life++;
+      if (p.life > p.maxLife) resetParticle(p);
+      const t   = p.life / p.maxLife;
+      const pull = 1 + t * t * 3;
+      p.vx *= 0.992; p.vy *= 0.992;
+      p.vx -= (p.x / 600) * pull * 0.12;
+      p.vy -= (p.y / 600) * pull * 0.12;
+      p.x  += p.vx; p.y  += p.vy;
+      const alpha = Math.sin(t * Math.PI) * 0.55;
+      ctx.fillStyle = p.color + alpha + ')';
+      ctx.beginPath();
+      ctx.arc(cx + p.x, cy + p.y * TILT, p.size * (1 - t * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    time += 0.007;
+    requestAnimationFrame(draw);
+  }
+
+  function drawDisk(ctx, cx, cy, R, tilt, time, front) {
+    const innerR = R * 1.35, outerR = R * 4.2;
+    const steps  = 180;
+    ctx.save();
+    for (let i = 0; i < steps; i++) {
+      const a    = (i / steps) * Math.PI * 2 + time;
+      const cosA = Math.cos(a);
+      const sinA = Math.sin(a) * tilt;
+      if ( front && sinA < 0) continue;
+      if (!front && sinA >= 0) continue;
+
+      // تأثير دوبلر: الجانب المقترب أكثر إشراقاً
+      const doppler = Math.max(0.35, Math.min(1.05, 0.7 + Math.cos(a) * 0.35));
+
+      for (let r2 = innerR; r2 <= outerR; r2 += 1.8) {
+        const t   = (r2 - innerR) / (outerR - innerR);
+        const px  = cx + cosA * r2;
+        const py  = cy + sinA * r2;
+        let rv, gv, bv, al;
+        if (t < 0.18) {
+          rv = 220; gv = 200; bv = 255;
+          al = (0.32 - t * 1.2) * doppler;
+        } else if (t < 0.48) {
+          const tt = (t - 0.18) / 0.3;
+          rv = 255; gv = Math.round(200 - tt * 70); bv = Math.round(240 - tt * 210);
+          al = (0.26 - tt * 0.1) * doppler;
+        } else {
+          const tt = (t - 0.48) / 0.52;
+          rv = 255; gv = Math.round(130 - tt * 100); bv = 10;
+          al = (0.16 - tt * 0.11) * doppler;
+        }
+        al = Math.max(0, al);
+        ctx.fillStyle = `rgba(${rv},${gv},${bv},${al})`;
+        ctx.fillRect(px - 1, py - 1, front ? 2.2 : 1.4, front ? 2.2 : 1.4);
+      }
+    }
+    ctx.restore();
+  }
+
+  draw();
+}
+initBlackHole();
+
 // ── Welcome → App flow ────────────────────────────────────
 const ws      = document.getElementById('welcomeScreen');
 const mainApp = document.getElementById('mainApp');
