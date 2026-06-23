@@ -17,21 +17,46 @@ function updateSession(count, maxSv) {
   }
 }
 
-// ── Welcome screen ────────────────────────────────────────
-const ws      = document.getElementById('welcomeScreen');
-const mainApp = document.getElementById('mainApp');
-const wsBtn   = document.getElementById('wsEnterBtn');
+// ── Welcome → Team → App flow ─────────────────────────────
+const ws         = document.getElementById('welcomeScreen');
+const teamScreen = document.getElementById('teamScreen');
+const mainApp    = document.getElementById('mainApp');
+const wsBtn      = document.getElementById('wsEnterBtn');
+const tsEnterBtn = document.getElementById('tsEnterBtn');
 
-function enterApp() {
+function enterTeam() {
   ws.classList.add('exit');
   setTimeout(() => {
     ws.style.display = 'none';
+    teamScreen.classList.remove('hidden');
+    initCardTilt();
+  }, 480);
+}
+
+function enterApp() {
+  teamScreen.classList.add('ts-exit');
+  setTimeout(() => {
+    teamScreen.style.display = 'none';
     mainApp.classList.remove('hidden');
   }, 480);
 }
 
-wsBtn.addEventListener('click', enterApp);
-ws.addEventListener('keydown', e => { if (e.key === 'Enter') enterApp(); });
+wsBtn.addEventListener('click', enterTeam);
+ws.addEventListener('keydown', e => { if (e.key === 'Enter') enterTeam(); });
+tsEnterBtn.addEventListener('click', enterApp);
+
+function initCardTilt() {
+  document.querySelectorAll('.ts-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width  - 0.5;
+      const y = (e.clientY - r.top)  / r.height - 0.5;
+      card.style.transform =
+        `translateY(-10px) perspective(650px) rotateX(${-y*11}deg) rotateY(${x*11}deg) scale(1.03)`;
+    });
+    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+  });
+}
 
 // ── DOM refs ──────────────────────────────────────────────
 const uploadZone    = document.getElementById('uploadZone');

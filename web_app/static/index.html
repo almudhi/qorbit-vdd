@@ -90,6 +90,120 @@
 
 
 <!-- ══════════════════════════════════════════
+     شاشة الفريق
+══════════════════════════════════════════ -->
+<div class="team-screen hidden" id="teamScreen">
+  <div class="ws-stars" aria-hidden="true"></div>
+  <div class="ws-nebula" aria-hidden="true"></div>
+
+  <div class="ts-content">
+
+    <!-- رأس -->
+    <div class="ts-header">
+      <div class="ts-top-badge">QORBIT · نظام الكشف البصري</div>
+      <h2 class="ts-main-title">قسم التقنية والابتكار</h2>
+      <div class="ws-divider" style="width:300px">
+        <span></span><span class="ws-div-dot"></span><span></span>
+      </div>
+      <p class="ts-subtitle">الفريق المطوّر لنظام كشف التشوه البصري الحضري بالذكاء الاصطناعي</p>
+    </div>
+
+    <!-- بطاقات الأعضاء -->
+    <div class="ts-cards">
+
+      <!-- هتان المضحي -->
+      <div class="ts-card">
+        <div class="ts-card-glow" style="--gc:#0047FF"></div>
+        <div class="ts-card-border" style="--bc:#0047FF"></div>
+        <div class="ts-av-wrap">
+          <div class="ts-av-ring"></div>
+          <div class="ts-av-orbit"><span class="ts-av-dot" style="--dc:#0047FF"></span></div>
+          <div class="ts-av" style="--c:#0047FF">هـ</div>
+        </div>
+        <div class="ts-lead-badge">Team Lead</div>
+        <div class="ts-member-name">هتان المضحي</div>
+        <div class="ts-member-role">قائدة الفريق التقني</div>
+        <div class="ts-skills">
+          <span>AI Vision</span><span>Research</span><span>Python</span>
+        </div>
+      </div>
+
+      <!-- فاطمة الشمري -->
+      <div class="ts-card">
+        <div class="ts-card-glow" style="--gc:#00D4FF"></div>
+        <div class="ts-card-border" style="--bc:#00D4FF"></div>
+        <div class="ts-av-wrap">
+          <div class="ts-av-ring" style="animation-duration:2.5s"></div>
+          <div class="ts-av-orbit" style="animation-duration:2.5s"><span class="ts-av-dot" style="--dc:#00D4FF"></span></div>
+          <div class="ts-av" style="--c:#00D4FF">ف</div>
+        </div>
+        <div class="ts-member-name">فاطمة الشمري</div>
+        <div class="ts-member-role">مطوّرة الذكاء الاصطناعي</div>
+        <div class="ts-skills">
+          <span>Deep Learning</span><span>CV</span><span>Data</span>
+        </div>
+      </div>
+
+      <!-- ماجد العنزي -->
+      <div class="ts-card">
+        <div class="ts-card-glow" style="--gc:#7744EE"></div>
+        <div class="ts-card-border" style="--bc:#7744EE"></div>
+        <div class="ts-av-wrap">
+          <div class="ts-av-ring" style="animation-duration:3.5s;animation-direction:reverse"></div>
+          <div class="ts-av-orbit" style="animation-duration:3.5s;animation-direction:reverse"><span class="ts-av-dot" style="--dc:#7744EE"></span></div>
+          <div class="ts-av" style="--c:#7744EE">م</div>
+        </div>
+        <div class="ts-member-name">ماجد العنزي</div>
+        <div class="ts-member-role">مهندس أنظمة الكشف</div>
+        <div class="ts-skills">
+          <span>Backend</span><span>ML Ops</span><span>Systems</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- إحصاءات النظام -->
+    <div class="ts-sys-stats">
+      <div class="ts-ss-item">
+        <span class="ts-ss-icon">🔭</span>
+        <span class="ts-ss-val">YOLOv11</span>
+        <span class="ts-ss-lbl">نموذج الكشف</span>
+      </div>
+      <div class="ts-ss-sep"></div>
+      <div class="ts-ss-item">
+        <span class="ts-ss-icon">🗂️</span>
+        <span class="ts-ss-val">11</span>
+        <span class="ts-ss-lbl">فئة تشوه</span>
+      </div>
+      <div class="ts-ss-sep"></div>
+      <div class="ts-ss-item">
+        <span class="ts-ss-icon">🤖</span>
+        <span class="ts-ss-val">Claude</span>
+        <span class="ts-ss-lbl">تحليل ذكي</span>
+      </div>
+      <div class="ts-ss-sep"></div>
+      <div class="ts-ss-item">
+        <span class="ts-ss-icon">📍</span>
+        <span class="ts-ss-val">DP</span>
+        <span class="ts-ss-lbl">تحليل المسار</span>
+      </div>
+    </div>
+
+    <button class="ws-enter" id="tsEnterBtn">
+      <span>دخول التطبيق</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="4 10 16 10"/><polyline points="11 5 16 10 11 15"/>
+      </svg>
+    </button>
+
+    <p class="ws-hint">QORBIT TECH SOLUTIONS &nbsp;·&nbsp; قسم التقنية والابتكار &nbsp;·&nbsp; 2025</p>
+  </div>
+
+  <div class="ws-scan" aria-hidden="true"></div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
      التطبيق الرئيسي
 ══════════════════════════════════════════ -->
 <div class="app hidden" id="mainApp">

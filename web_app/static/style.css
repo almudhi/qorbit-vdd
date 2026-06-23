@@ -621,4 +621,147 @@ main { padding:1.4rem; max-width:1380px; margin:0 auto; }
   color:rgba(237,242,255,.18); direction:ltr; padding-bottom:.5rem;
 }
 
+/* ══════════════════════════════════════════════════
+   شاشة الفريق
+══════════════════════════════════════════════════ */
+.team-screen {
+  position:fixed; inset:0; z-index:990;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--space-black); overflow:hidden;
+}
+.team-screen.ts-exit { animation:wsFadeOut .5s ease forwards; }
+
+.ts-content {
+  position:relative; z-index:2;
+  display:flex; flex-direction:column; align-items:center;
+  gap:1.6rem; text-align:center; padding:1.5rem 1rem;
+  animation:wsFadeIn .7s ease both;
+}
+
+/* رأس شاشة الفريق */
+.ts-header { display:flex; flex-direction:column; align-items:center; gap:.5rem; }
+.ts-top-badge {
+  font-size:.62rem; letter-spacing:.28em; color:var(--quantum-cyan);
+  font-family:'Consolas',monospace; opacity:.7;
+}
+.ts-main-title {
+  font-size:2.1rem; font-weight:900; direction:rtl;
+  background:linear-gradient(135deg,var(--star-white) 20%,var(--quantum-cyan) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  margin-bottom:.3rem;
+}
+.ts-subtitle { font-size:.8rem; color:var(--muted); direction:rtl; max-width:500px; line-height:1.6; }
+
+/* بطاقات الفريق */
+.ts-cards { display:flex; gap:1.3rem; flex-wrap:wrap; justify-content:center; }
+
+.ts-card {
+  position:relative; width:188px;
+  padding:1.6rem 1rem 1.3rem;
+  background:rgba(13,22,53,.88);
+  border:1px solid var(--border-c);
+  border-radius:20px; backdrop-filter:blur(12px);
+  display:flex; flex-direction:column; align-items:center; gap:.5rem;
+  overflow:hidden; cursor:default;
+  transition:box-shadow .3s, border-color .3s;
+  animation:tsCardIn .55s cubic-bezier(.22,1,.36,1) both;
+}
+.ts-card:nth-child(1){animation-delay:.08s}
+.ts-card:nth-child(2){animation-delay:.2s}
+.ts-card:nth-child(3){animation-delay:.32s}
+
+@keyframes tsCardIn {
+  from{opacity:0;transform:translateY(32px) scale(.94)}
+  to{opacity:1;transform:none}
+}
+
+/* توهج الخلفية */
+.ts-card-glow {
+  position:absolute; bottom:-30px; left:50%; transform:translateX(-50%);
+  width:120px; height:120px; border-radius:50%;
+  background:var(--gc,var(--quantum-cyan)); opacity:.08;
+  filter:blur(28px); pointer-events:none;
+  transition:opacity .3s;
+}
+.ts-card:hover .ts-card-glow { opacity:.18; }
+
+/* حد ملون علوي */
+.ts-card-border {
+  position:absolute; top:0; left:20%; right:20%; height:2px;
+  background:linear-gradient(90deg,transparent,var(--bc,var(--quantum-cyan)),transparent);
+  border-radius:2px;
+}
+
+/* رفع البطاقة عند hover — يتحكم JS بالميل */
+.ts-card:hover { border-color:rgba(0,212,255,.3); box-shadow:0 28px 60px rgba(0,0,0,.5),0 0 40px rgba(0,71,255,.2); }
+
+/* الأفاتار */
+.ts-av-wrap { position:relative; width:86px; height:86px; margin-bottom:.3rem; }
+
+.ts-av {
+  width:86px; height:86px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.28) 0%,var(--c) 55%,rgba(0,0,0,.18) 100%);
+  display:flex; align-items:center; justify-content:center;
+  font-size:2rem; font-weight:900; color:#fff;
+  box-shadow:0 0 30px rgba(0,0,0,.5), inset 0 0 18px rgba(255,255,255,.1);
+}
+
+.ts-av-ring {
+  position:absolute; inset:-11px; border-radius:50%;
+  border:1.8px solid transparent;
+  border-top-color:var(--quantum-cyan);
+  border-right-color:rgba(0,212,255,.25);
+  animation:tsRingSpin 3s linear infinite;
+}
+.ts-av-orbit {
+  position:absolute; inset:-11px; border-radius:50%;
+  animation:tsRingSpin 3s linear infinite;
+}
+.ts-av-dot {
+  position:absolute; top:1px; left:50%; transform:translateX(-50%);
+  width:7px; height:7px; border-radius:50%; display:block;
+  background:var(--dc,var(--quantum-cyan));
+  box-shadow:0 0 10px var(--dc,var(--quantum-cyan)),0 0 22px rgba(0,212,255,.45);
+}
+@keyframes tsRingSpin{to{transform:rotate(360deg)}}
+
+/* اسم ودور */
+.ts-member-name {
+  font-size:.94rem; font-weight:800; color:var(--star-white);
+  direction:rtl; letter-spacing:.02em;
+}
+.ts-member-role {
+  font-size:.69rem; color:var(--quantum-cyan); direction:rtl;
+  letter-spacing:.05em; opacity:.9;
+}
+
+/* شارة Team Lead */
+.ts-lead-badge {
+  font-size:.56rem; font-family:'Consolas',monospace; letter-spacing:.1em;
+  background:linear-gradient(90deg,var(--orbit-blue),var(--quantum-cyan));
+  color:var(--space-black); font-weight:900;
+  padding:.18rem .65rem; border-radius:20px;
+}
+
+/* مهارات */
+.ts-skills { display:flex; gap:.35rem; flex-wrap:wrap; justify-content:center; margin-top:.15rem; }
+.ts-skills span {
+  font-size:.58rem; font-family:'Consolas',monospace;
+  background:rgba(0,71,255,.14); border:1px solid var(--border-c);
+  border-radius:12px; padding:.14rem .5rem; color:var(--muted);
+  letter-spacing:.04em;
+}
+
+/* إحصاءات النظام */
+.ts-sys-stats {
+  display:flex; align-items:center; gap:1rem;
+  background:rgba(13,22,53,.75); border:1px solid var(--border-c);
+  border-radius:40px; padding:.65rem 1.4rem; backdrop-filter:blur(8px);
+}
+.ts-ss-item { display:flex; flex-direction:column; align-items:center; gap:.1rem; }
+.ts-ss-icon { font-size:.9rem; }
+.ts-ss-val { font-size:.84rem; font-weight:800; color:var(--quantum-cyan); font-family:'Consolas',monospace; line-height:1.1; }
+.ts-ss-lbl { font-size:.58rem; color:var(--muted); direction:rtl; }
+.ts-ss-sep { width:1px; height:34px; background:var(--border-c); }
+
 .hidden{display:none !important;}
