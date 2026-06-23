@@ -17,46 +17,54 @@ function updateSession(count, maxSv) {
   }
 }
 
-// ── Welcome → Team → App flow ─────────────────────────────
-const ws         = document.getElementById('welcomeScreen');
-const teamScreen = document.getElementById('teamScreen');
-const mainApp    = document.getElementById('mainApp');
-const wsBtn      = document.getElementById('wsEnterBtn');
-const tsEnterBtn = document.getElementById('tsEnterBtn');
+// ── خلفية الفضاء ──────────────────────────────────────────
+function initSpaceBg() {
+  const el = document.getElementById('sbStars');
+  if (!el) return;
+  for (let i = 0; i < 140; i++) {
+    const s = document.createElement('div');
+    s.className = 'sb-star';
+    const sz = (Math.random() * 2.2 + 0.4).toFixed(1);
+    s.style.cssText =
+      `left:${(Math.random()*100).toFixed(1)}%;` +
+      `top:${(Math.random()*100).toFixed(1)}%;` +
+      `width:${sz}px;height:${sz}px;` +
+      `--dur:${(1.8+Math.random()*5).toFixed(1)}s;` +
+      `--delay:${(Math.random()*9).toFixed(1)}s;` +
+      `--min:${(0.04+Math.random()*0.15).toFixed(2)};` +
+      `--max:${(0.5+Math.random()*0.5).toFixed(2)};`;
+    el.appendChild(s);
+  }
+}
+initSpaceBg();
 
-function enterTeam() {
+// ── Welcome → App flow ────────────────────────────────────
+const ws      = document.getElementById('welcomeScreen');
+const mainApp = document.getElementById('mainApp');
+const wsBtn   = document.getElementById('wsEnterBtn');
+
+function enterApp() {
   ws.classList.add('exit');
   setTimeout(() => {
     ws.style.display = 'none';
-    teamScreen.classList.remove('hidden');
-    initCardTilt();
-  }, 480);
-}
-
-function enterApp() {
-  teamScreen.classList.add('ts-exit');
-  setTimeout(() => {
-    teamScreen.style.display = 'none';
     mainApp.classList.remove('hidden');
   }, 480);
 }
 
-wsBtn.addEventListener('click', enterTeam);
-ws.addEventListener('keydown', e => { if (e.key === 'Enter') enterTeam(); });
-tsEnterBtn.addEventListener('click', enterApp);
+wsBtn.addEventListener('click', enterApp);
+ws.addEventListener('keydown', e => { if (e.key === 'Enter') enterApp(); });
 
-function initCardTilt() {
-  document.querySelectorAll('.ts-card').forEach(card => {
-    card.addEventListener('mousemove', e => {
-      const r = card.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width  - 0.5;
-      const y = (e.clientY - r.top)  / r.height - 0.5;
-      card.style.transform =
-        `translateY(-10px) perspective(650px) rotateX(${-y*11}deg) rotateY(${x*11}deg) scale(1.03)`;
-    });
-    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+// ── 3D tilt على بطاقات الفريق ─────────────────────────────
+document.querySelectorAll('.ts-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width  - 0.5;
+    const y = (e.clientY - r.top)  / r.height - 0.5;
+    card.style.transform =
+      `translateY(-10px) perspective(650px) rotateX(${-y*11}deg) rotateY(${x*11}deg) scale(1.03)`;
   });
-}
+  card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+});
 
 // ── DOM refs ──────────────────────────────────────────────
 const uploadZone    = document.getElementById('uploadZone');
