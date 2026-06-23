@@ -287,14 +287,23 @@
         <div class="panel-title"><span class="panel-id">SCAN</span>نتائج التحليل</div>
 
         <div class="placeholder" id="placeholder">
-          <div class="placeholder-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
+          <div class="placeholder-orbit">
+            <div class="ph-ring ph-ring1"></div>
+            <div class="ph-ring ph-ring2"></div>
+            <div class="placeholder-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
           </div>
-          <p>ارفع صورة لبدء الفحص</p>
+          <p class="ph-main">ارفع صورة لبدء الفحص</p>
+          <div class="ph-tips">
+            <div class="ph-tip"><span class="ph-tip-ic">📸</span><span>اسحب الصورة أو اضغط للتصفّح</span></div>
+            <div class="ph-tip"><span class="ph-tip-ic">🤖</span><span>YOLOv11 يكتشف 11 نوع تشوه فورياً</span></div>
+            <div class="ph-tip"><span class="ph-tip-ic">🧠</span><span>أضف مفتاح Claude API للتحليل التفصيلي</span></div>
+          </div>
           <p class="placeholder-sub">النواة · المدار · الابتكار</p>
         </div>
 
@@ -319,6 +328,41 @@
       QORBIT TECH SOLUTIONS &nbsp;·&nbsp; Visual Distortion Detection System &nbsp;·&nbsp; v2.0 &nbsp;·&nbsp; 2025
     </div>
   </main>
+</div>
+
+<!-- ── Chatbot Widget ── -->
+<div class="chat-widget" id="chatWidget">
+  <button class="chat-fab" id="chatFab" title="مساعد QORBIT">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <span class="chat-notif">1</span>
+  </button>
+  <div class="chat-panel hidden" id="chatPanel">
+    <div class="chat-hdr">
+      <div class="chat-hdr-av">Q</div>
+      <div class="chat-hdr-info">
+        <div class="chat-hdr-name">QORBIT Assistant</div>
+        <div class="chat-hdr-status"><span class="chat-status-dot"></span>متصل الآن</div>
+      </div>
+      <button class="chat-close-btn" id="chatClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="chat-msgs" id="chatMsgs"></div>
+    <div class="chat-quick-wrap" id="chatQuick"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatInput" type="text" placeholder="اكتب سؤالك هنا..." dir="rtl"/>
+      <button class="chat-send-btn" id="chatSend">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 </div>
 
 <script src="app.js"></script>

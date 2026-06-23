@@ -38,154 +38,181 @@ function initSpaceBg() {
 }
 initSpaceBg();
 
-// ── الثقب الأسود ─────────────────────────────────────────
+// ── الثقب الأسود الواقعي ──────────────────────────────────
 function initBlackHole() {
   const bg = document.getElementById('spaceBg');
   if (!bg) return;
 
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
   bg.appendChild(canvas);
   const ctx = canvas.getContext('2d');
 
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
+  let W = 0, H = 0;
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
   resize();
   window.addEventListener('resize', resize);
 
-  // الثقب في الجانب الأيمن السفلي — لا يتداخل مع المحتوى
-  const BH_XF = 0.78, BH_YF = 0.68;
-  let time = 0;
+  const BH_XF = 0.80, BH_YF = 0.72, TILT = 0.30;
+  let t = 0;
 
-  // جسيمات تنجذب نحو الثقب
-  const PARTICLES = Array.from({length: 90}, () => resetParticle({}));
-
-  function resetParticle(p) {
+  // جسيمات مدارية
+  const PARTS = Array.from({length: 110}, () => spawnPart({}));
+  function spawnPart(p) {
     const a = Math.random() * Math.PI * 2;
-    const d = 200 + Math.random() * 350;
-    p.x  = Math.cos(a) * d;
-    p.y  = Math.sin(a) * d * 0.35;
-    p.vx = (-Math.cos(a) * 0.4) + (Math.sin(a) * 0.6);
-    p.vy = (-Math.sin(a) * 0.15) + (Math.cos(a) * 0.2);
-    p.life = 0;
-    p.maxLife = 120 + Math.random() * 180;
-    p.size = 0.8 + Math.random() * 1.4;
-    p.color = Math.random() < 0.5
-      ? `rgba(255,${Math.round(100+Math.random()*120)},30,`
-      : `rgba(80,${Math.round(150+Math.random()*100)},255,`;
+    const r = 140 + Math.random() * 270;
+    p.a = a; p.r = r;
+    p.da = (0.009 + Math.random() * 0.013) * (Math.random() < 0.5 ? 1 : -1);
+    p.dr = -(0.12 + Math.random() * 0.25);
+    p.life = 0; p.maxLife = 170 + Math.random() * 220;
+    p.sz = 0.5 + Math.random() * 1.1;
+    p.warm = Math.random() < 0.65;
     return p;
   }
 
-  function draw() {
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
+  // لون القرص حسب درجة الحرارة (t=0 داخلي ساخن، t=1 خارجي بارد)
+  function diskColor(tr) {
+    if (tr < 0.22) {
+      const m = tr / 0.22;
+      return [255, Math.round(245 - m * 30), 255];
+    } else if (tr < 0.50) {
+      const m = (tr - 0.22) / 0.28;
+      return [255, Math.round(215 - m * 110), Math.round(225 - m * 210)];
+    } else if (tr < 0.75) {
+      const m = (tr - 0.50) / 0.25;
+      return [255, Math.round(105 - m * 55), 15];
+    } else {
+      const m = (tr - 0.75) / 0.25;
+      return [Math.round(255 - m * 95), Math.round(50 - m * 35), 15];
+    }
+  }
 
+  function drawDiskHalf(isfront) {
     const cx = W * BH_XF, cy = H * BH_YF;
-    const R  = Math.min(W, H) * 0.068;  // نصف قطر أفق الحدث
-    const TILT = 0.28;                   // ميل قرص التراكم
+    const R = Math.min(W, H) * 0.068;
+    const inner = R * 1.42, outer = R * 4.7;
+    const RINGS = 52;
 
-    // ── 1. توهج الجاذبية الخارجي
-    const outerGlow = ctx.createRadialGradient(cx, cy, R, cx, cy, R * 6);
-    outerGlow.addColorStop(0,   'rgba(80,30,160,0.28)');
-    outerGlow.addColorStop(0.35,'rgba(30,10,100,0.14)');
-    outerGlow.addColorStop(0.7, 'rgba(0,40,120,0.07)');
-    outerGlow.addColorStop(1,   'transparent');
-    ctx.fillStyle = outerGlow;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R * 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // ── 2. قرص التراكم — النصف الخلفي
-    drawDisk(ctx, cx, cy, R, TILT, time, false);
-
-    // ── 3. أفق الحدث (الدائرة السوداء)
-    const bhGrad = ctx.createRadialGradient(cx - R*0.22, cy - R*0.18, 0, cx, cy, R * 1.18);
-    bhGrad.addColorStop(0,    '#000000');
-    bhGrad.addColorStop(0.78, '#000000');
-    bhGrad.addColorStop(0.9,  'rgba(0,0,0,.82)');
-    bhGrad.addColorStop(1.0,  'rgba(0,0,0,0)');
-    ctx.fillStyle = bhGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R * 1.12, 0, Math.PI * 2);
-    ctx.fill();
-
-    // ── 4. حلقة الفوتونات
-    const pulse = 0.28 + Math.sin(time * 1.8) * 0.08;
     ctx.save();
-    ctx.shadowColor = 'rgba(130,200,255,.9)';
-    ctx.shadowBlur  = 18;
+    ctx.translate(cx, cy);
+
+    // قص النصف المطلوب قبل التحجيم
     ctx.beginPath();
-    ctx.arc(cx, cy, R * 1.04, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(150,210,255,${pulse})`;
-    ctx.lineWidth   = 2.5;
-    ctx.stroke();
-    ctx.restore();
+    if (isfront) ctx.rect(-outer * 1.6, 0,         outer * 3.2, outer * 1.6);
+    else          ctx.rect(-outer * 1.6, -outer * 1.6, outer * 3.2, outer * 1.6);
+    ctx.clip();
 
-    // ── 5. قرص التراكم — النصف الأمامي
-    drawDisk(ctx, cx, cy, R, TILT, time, true);
+    // تحجيم y لتشكيل الإهليج
+    ctx.scale(1, TILT);
 
-    // ── 6. جسيمات التراكم
-    PARTICLES.forEach(p => {
-      p.life++;
-      if (p.life > p.maxLife) resetParticle(p);
-      const t   = p.life / p.maxLife;
-      const pull = 1 + t * t * 3;
-      p.vx *= 0.992; p.vy *= 0.992;
-      p.vx -= (p.x / 600) * pull * 0.12;
-      p.vy -= (p.y / 600) * pull * 0.12;
-      p.x  += p.vx; p.y  += p.vy;
-      const alpha = Math.sin(t * Math.PI) * 0.55;
-      ctx.fillStyle = p.color + alpha + ')';
+    // رسم الحلقات المتحدة المركز
+    for (let i = 0; i <= RINGS; i++) {
+      const tr = i / RINGS;
+      const r  = inner + tr * (outer - inner);
+      const [rv, gv, bv] = diskColor(tr);
+      const alpha = (1 - tr * 0.74) * (isfront ? 0.20 : 0.10);
       ctx.beginPath();
-      ctx.arc(cx + p.x, cy + p.y * TILT, p.size * (1 - t * 0.5), 0, Math.PI * 2);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${rv},${gv},${bv},${alpha})`;
+      ctx.lineWidth   = (outer - inner) / RINGS * 1.12;
+      ctx.stroke();
+    }
+
+    // إضاءة دوبلر — نقطة ساطعة تدور مع القرص
+    const dA  = -t;
+    const dGx = Math.cos(dA) * (inner + outer) * 0.42;
+    const dGy = Math.sin(dA) * (inner + outer) * 0.42;
+    const dg  = ctx.createRadialGradient(dGx, dGy, 0, dGx, dGy, outer * 0.62);
+    dg.addColorStop(0,   `rgba(255,210,80,${isfront ? 0.22 : 0.10})`);
+    dg.addColorStop(0.45,`rgba(255,130,20,${isfront ? 0.09 : 0.04})`);
+    dg.addColorStop(1,   'transparent');
+    ctx.beginPath();
+    ctx.arc(0, 0, outer, 0, Math.PI * 2, false);
+    ctx.arc(0, 0, inner, 0, Math.PI * 2, true);
+    ctx.fillStyle = dg;
+    ctx.fill('evenodd');
+
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const cx = W * BH_XF, cy = H * BH_YF;
+    const R  = Math.min(W, H) * 0.068;
+
+    // ─ 1. توهج الجاذبية الخارجي (طبقات)
+    for (let i = 3; i >= 1; i--) {
+      const g = ctx.createRadialGradient(cx, cy, R, cx, cy, R * i * 2.8);
+      g.addColorStop(0,   `rgba(55,15,120,${0.14 / i})`);
+      g.addColorStop(0.5, `rgba(20,8,80,${0.07 / i})`);
+      g.addColorStop(1,   'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, R * i * 2.8, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // ─ 2. قرص التراكم — النصف الخلفي
+    drawDiskHalf(false);
+
+    // ─ 3. حلقة الفوتونات (نابضة)
+    const pulse = 0.18 + Math.sin(t * 2.1) * 0.07;
+    const ph = ctx.createRadialGradient(cx, cy, R * 0.88, cx, cy, R * 1.38);
+    ph.addColorStop(0,    'transparent');
+    ph.addColorStop(0.52, `rgba(185,225,255,${pulse})`);
+    ph.addColorStop(0.72, `rgba(100,175,255,${pulse * 0.45})`);
+    ph.addColorStop(1,    'transparent');
+    ctx.fillStyle = ph;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 1.38, 0, Math.PI * 2); ctx.fill();
+
+    // ─ 4. أفق الحدث (أسود مطلق)
+    const eh = ctx.createRadialGradient(cx - R * 0.2, cy - R * 0.14, 0, cx, cy, R * 1.10);
+    eh.addColorStop(0,    '#000'); eh.addColorStop(0.80, '#000');
+    eh.addColorStop(0.92, 'rgba(0,0,0,.88)'); eh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = eh;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 1.10, 0, Math.PI * 2); ctx.fill();
+
+    // ─ 5. قرص التراكم — النصف الأمامي (فوق أفق الحدث)
+    drawDiskHalf(true);
+
+    // ─ 6. نفاثتان نسبيتان (Relativistic Jets)
+    for (const jDir of [-1, 1]) {
+      const jLen  = R * 5.8;
+      const jW    = R * 0.14;
+      const jpul  = 0.20 + Math.sin(t * 1.85 + jDir * 1.2) * 0.07;
+      const jg    = ctx.createLinearGradient(cx, cy, cx, cy + jDir * jLen);
+      jg.addColorStop(0,   `rgba(175,225,255,${jpul})`);
+      jg.addColorStop(0.38,`rgba(80,145,255,${jpul * 0.42})`);
+      jg.addColorStop(0.72,`rgba(30,75,200,${jpul * 0.14})`);
+      jg.addColorStop(1,   'transparent');
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(cx - jW, cy - jDir * R * 0.88);
+      ctx.bezierCurveTo(cx - jW * 0.35, cy + jDir * jLen * 0.33,
+                        cx - jW * 0.08,  cy + jDir * jLen * 0.70, cx, cy + jDir * jLen);
+      ctx.bezierCurveTo(cx + jW * 0.08,  cy + jDir * jLen * 0.70,
+                        cx + jW * 0.35,  cy + jDir * jLen * 0.33, cx + jW, cy - jDir * R * 0.88);
+      ctx.closePath();
+      ctx.fillStyle = jg; ctx.fill();
+      ctx.restore();
+    }
+
+    // ─ 7. جسيمات مدارية
+    PARTS.forEach(p => {
+      p.life++; p.a += p.da; p.r += p.dr * 0.07;
+      if (p.life >= p.maxLife || p.r < 28) { spawnPart(p); return; }
+      const frac  = p.life / p.maxLife;
+      const px    = cx + Math.cos(p.a) * p.r;
+      const py    = cy + Math.sin(p.a) * p.r * TILT;
+      const alpha = Math.sin(frac * Math.PI) * 0.48;
+      ctx.beginPath(); ctx.arc(px, py, p.sz * (1 - frac * 0.5), 0, Math.PI * 2);
+      ctx.fillStyle = p.warm
+        ? `rgba(255,${Math.round(115 + frac * 55)},25,${alpha})`
+        : `rgba(75,${Math.round(148 + frac * 52)},255,${alpha})`;
       ctx.fill();
     });
 
-    time += 0.007;
+    t += 0.006;
     requestAnimationFrame(draw);
   }
-
-  function drawDisk(ctx, cx, cy, R, tilt, time, front) {
-    const innerR = R * 1.35, outerR = R * 4.2;
-    const steps  = 180;
-    ctx.save();
-    for (let i = 0; i < steps; i++) {
-      const a    = (i / steps) * Math.PI * 2 + time;
-      const cosA = Math.cos(a);
-      const sinA = Math.sin(a) * tilt;
-      if ( front && sinA < 0) continue;
-      if (!front && sinA >= 0) continue;
-
-      // تأثير دوبلر: الجانب المقترب أكثر إشراقاً
-      const doppler = Math.max(0.35, Math.min(1.05, 0.7 + Math.cos(a) * 0.35));
-
-      for (let r2 = innerR; r2 <= outerR; r2 += 1.8) {
-        const t   = (r2 - innerR) / (outerR - innerR);
-        const px  = cx + cosA * r2;
-        const py  = cy + sinA * r2;
-        let rv, gv, bv, al;
-        if (t < 0.18) {
-          rv = 220; gv = 200; bv = 255;
-          al = (0.32 - t * 1.2) * doppler;
-        } else if (t < 0.48) {
-          const tt = (t - 0.18) / 0.3;
-          rv = 255; gv = Math.round(200 - tt * 70); bv = Math.round(240 - tt * 210);
-          al = (0.26 - tt * 0.1) * doppler;
-        } else {
-          const tt = (t - 0.48) / 0.52;
-          rv = 255; gv = Math.round(130 - tt * 100); bv = 10;
-          al = (0.16 - tt * 0.11) * doppler;
-        }
-        al = Math.max(0, al);
-        ctx.fillStyle = `rgba(${rv},${gv},${bv},${al})`;
-        ctx.fillRect(px - 1, py - 1, front ? 2.2 : 1.4, front ? 2.2 : 1.4);
-      }
-    }
-    ctx.restore();
-  }
-
   draw();
 }
 initBlackHole();
@@ -588,5 +615,112 @@ function esc(s) {
     .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
 }
 
+// ── Chatbot ───────────────────────────────────────────────
+const CHAT_KB = [
+  { t:['مرحبا','هلا','اهلا','السلام','hello','hi','صباح','مساء'],
+    r:'أهلاً بك في QORBIT! 👋\nأنا مساعدك الذكي — يمكنني مساعدتك في استخدام نظام كشف التشوهات البصرية.',
+    q:['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','كيف أفعّل AI Vision؟'] },
+  { t:['رفع','صورة','كيف','ارفع','upload','drag','سحب','تصفح'],
+    r:'📸 خطوات رفع الصورة:\n① اضغط على منطقة "رفع الصورة"\n② أو اسحب الصورة وأفلتها مباشرة\n③ صيغ مدعومة: JPEG · PNG · WebP\n④ حجم أقصى: 20 MB\n\nالتحليل يبدأ تلقائياً بعد الرفع!',
+    q:['ما هي التشوهات المكتشفة؟','ما معنى درجة الخطر؟'] },
+  { t:['تشوه','أنواع','فئات','يكتشف','فئة','class','distortion'],
+    r:'🔍 النظام يكتشف 11 نوع تشوه:\n\n📋 لافتة إعلانية تالفة\n💡 إنارة طريق معطلة\n⚠️ لافتة مكسورة\n📦 رصيف مزدحم\n🚧 حفريات طريق\n🔅 لافتة باهتة\n🗑️ نفايات\n🎨 جرافيتي\n⚫ حفر في الطريق\n🌬️ رمال على الطريق\n🏚️ واجهة متهالكة',
+    q:['كيف أرفع صورة؟','ما معنى درجة الخطر؟'] },
+  { t:['yolo','نموذج','كشف','best','model','v11'],
+    r:'🤖 YOLOv11 — أحدث نماذج الكشف الفوري:\n\n• كشف دقيق وسريع في الوقت الحقيقي\n• مُدرَّب على 11 فئة تشوه بصري\n• يُنتج صورة مُعلَّمة بمربعات الكشف\n• حد الثقة الأدنى: 15%',
+    q:['ما هو Claude AI؟','ما معنى درجة الخطر؟'] },
+  { t:['claude','api','مفتاح','ذكاء','vision','تحليل','انثروبيك','anthropic'],
+    r:'🧠 تفعيل Claude AI Vision:\n\n① اضغط ⚙️ في أعلى الصفحة\n② أدخل مفتاح Anthropic API\n③ اضغط "حفظ"\n\n✅ يُخزَّن في متصفحك فقط\n\nبدونه: يعمل YOLOv11 وحده\nمعه: تحليل نصي تفصيلي بالعربية',
+    q:['كيف أرفع صورة؟','ما معنى درجة الخطر؟'] },
+  { t:['خطر','درجة','dp','مخاطر','ديناميكية','score','risk','شبكة'],
+    r:'📊 درجة الخطر — خوارزمية DP:\n\n• الصورة تُقسَّم إلى شبكة 5×5\n• تُحسب كثافة التشوهات في كل خلية\n• يُجاد المسار الأمثل للفحص\n\n🟢 0–5: خطر منخفض\n🟡 5–10: خطر متوسط\n🔴 10+: خطر مرتفع — تدخّل فوري',
+    q:['ما هي التشوهات المكتشفة؟','كيف أرفع صورة؟'] },
+  { t:['ثقة','نسبة','confidence','دقة'],
+    r:'📈 نسبة الثقة:\n\n• 85–100%: اكتشاف مؤكد ✅\n• 60–85%: اكتشاف موثوق 🔵\n• 30–60%: اكتشاف محتمل 🟡\n• أقل: يحتاج مراجعة 🔴\n\nالنظام يعرض الاكتشافات من 15% فأعلى',
+    q:['ما معنى درجة الخطر؟','ما هي التشوهات المكتشفة؟'] },
+  { t:['drone','طائرة','درون','مسيّرة','uav','جوية','مسيرة'],
+    r:'🚁 QORBIT مُحسَّن لصور الطائرات المسيّرة:\n\n• يعمل مع الصور الجوية والأرضية\n• كشف تشوهات البنية التحتية الحضرية\n• يدعم الإضاءة المختلفة (نهار/ليل)',
+    q:['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟'] },
+  { t:['شكرا','ممتاز','رائع','جميل','مشكور','thanks','thank','عظيم'],
+    r:'بكل سرور! 🌟 QORBIT هنا لخدمتك.\nهل تحتاج مساعدة في شيء آخر؟',
+    q:['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','كيف أفعّل AI Vision؟'] }
+];
+
+function initChatbot() {
+  const fab   = document.getElementById('chatFab');
+  const panel = document.getElementById('chatPanel');
+  const close = document.getElementById('chatClose');
+  const msgs  = document.getElementById('chatMsgs');
+  const quick = document.getElementById('chatQuick');
+  const input = document.getElementById('chatInput');
+  const send  = document.getElementById('chatSend');
+  if (!fab) return;
+
+  let isOpen = false;
+  const notif = fab.querySelector('.chat-notif');
+
+  function toggle() {
+    isOpen = !isOpen;
+    if (isOpen) {
+      panel.classList.remove('hidden');
+      if (notif) notif.style.display = 'none';
+      if (msgs.children.length === 0) {
+        botReply('مرحباً! أنا مساعد QORBIT 🤖\nيمكنني مساعدتك في استخدام نظام كشف التشوه البصري. اختر سؤالاً أو اكتب ما يخطر ببالك!',
+          ['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','كيف أفعّل AI Vision؟']);
+      }
+    } else {
+      panel.classList.add('hidden');
+    }
+  }
+
+  fab.addEventListener('click', toggle);
+  close.addEventListener('click', toggle);
+
+  function nowTime() {
+    return new Date().toLocaleTimeString('ar', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function addBubble(text, isBot) {
+    const d = document.createElement('div');
+    d.className = `chat-msg ${isBot ? 'bot' : 'user'}`;
+    d.innerHTML = `<div class="chat-bubble">${esc(text)}</div><div class="chat-time">${nowTime()}</div>`;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function setQuickReplies(qs) {
+    quick.innerHTML = '';
+    (qs || []).forEach(q => {
+      const b = document.createElement('button');
+      b.className = 'chat-quick-btn'; b.textContent = q;
+      b.addEventListener('click', () => handleSend(q));
+      quick.appendChild(b);
+    });
+  }
+
+  function botReply(text, qs) {
+    setTimeout(() => { addBubble(text, true); setQuickReplies(qs || []); }, 310);
+  }
+
+  function handleSend(text) {
+    text = text.trim(); if (!text) return;
+    addBubble(text, false);
+    input.value = ''; setQuickReplies([]);
+    const low = text.toLowerCase();
+    let best = null, bestScore = 0;
+    for (const entry of CHAT_KB) {
+      const sc = entry.t.filter(kw => low.includes(kw)).length;
+      if (sc > bestScore) { bestScore = sc; best = entry; }
+    }
+    if (best && bestScore > 0) botReply(best.r, best.q);
+    else botReply('لم أفهم سؤالك تماماً 😅\nجرّب أحد الأسئلة الشائعة أدناه:',
+      ['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','ما معنى درجة الخطر؟','كيف أفعّل AI Vision؟']);
+  }
+
+  send.addEventListener('click', () => handleSend(input.value));
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') handleSend(input.value); });
+}
+
 // ── Init ──────────────────────────────────────────────────
 checkHealth();
+initChatbot();
