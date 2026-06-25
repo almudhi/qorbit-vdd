@@ -941,16 +941,29 @@ main { padding:1.4rem; max-width:1380px; margin:0 auto; }
 /* الشخصيتان معاً */
 .sb-chars {
   display: flex; align-items: flex-end; gap: 4px;
-  cursor: pointer; pointer-events: all;
+  cursor: grab; pointer-events: all;
   filter: drop-shadow(0 6px 18px rgba(0,212,255,.28));
   animation: sbBob 3.2s ease-in-out infinite;
   transition: filter .25s, transform .2s;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
 .sb-chars:hover {
   filter: drop-shadow(0 8px 26px rgba(0,212,255,.55));
   transform: scale(1.08);
   animation: none;
+}
+.sb-chars:active {
+  cursor: grabbing;
+  filter: drop-shadow(0 10px 32px rgba(204,68,255,.7));
+  transform: scale(1.12) rotate(3deg);
+  animation: sbShake 0.18s ease-in-out;
+}
+@keyframes sbShake {
+  0%,100% { transform: scale(1.12) rotate(3deg); }
+  25%      { transform: scale(1.12) rotate(-3deg); }
+  75%      { transform: scale(1.12) rotate(4deg); }
 }
 @keyframes sbBob {
   0%,100% { transform: translateY(0) rotate(-1.5deg); }

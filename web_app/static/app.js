@@ -801,11 +801,20 @@ const CHAT_KB = [
 
 const BUBBLE_MSGS = [
   'هل تحتاج مساعدة؟ 👋',
-  'جرّب رفع صورة! 📸',
-  'اسألني عن النظام 🤖',
+  'جرّب رفع صورة الآن! 📸',
+  'اسألني عن أي شيء 🤖',
   'أنا هنا من الفضاء! 🚀',
-  'ما هي التشوهات؟ 🔍',
+  'ما هي التشوهات البصرية؟ 🔍',
   'يمكنني مساعدتك! 👾',
+  'كيف تعمل خوارزمية DP؟ 📊',
+  'ما معنى درجة الخطر؟ ⚠️',
+  'كيف أُفعّل AI Vision؟ 🧠',
+  'اضغط عليّ للمساعدة! 💬',
+  'هل صورتك جاهزة؟ 🖼️',
+  'QORBIT في خدمتك دائماً 🌌',
+  'يوجد 11 نوع تشوه قادر أكشفها! 🔎',
+  'نموذج YOLOv11 جاهز للتحليل ✅',
+  'أسعدني مساعدتك اليوم! 😊',
 ];
 
 function initSpaceBuddy() {
@@ -827,23 +836,29 @@ function initSpaceBuddy() {
   let targetX = posX, targetY = posY;
   let moving = true, msgIdx = 0;
 
-  buddy.style.position = 'fixed';
-  buddy.style.left = posX + 'px';
-  buddy.style.top  = posY + 'px';
-  buddy.style.zIndex = '9000';
+  // ── Drag state ──
+  let isDragging = false, dragMoved = false;
+  let dragOffX = 0, dragOffY = 0;
 
+  buddy.style.position = 'fixed';
+  buddy.style.left     = posX + 'px';
+  buddy.style.top      = posY + 'px';
+  buddy.style.zIndex   = '9000';
+
+  // ── Roaming target picker ──
   function pickTarget() {
     const W = window.innerWidth, H = window.innerHeight;
     const zone = Math.floor(Math.random() * 3);
-    if (zone === 0)      { targetX = W - 160 - Math.random()*80;    targetY = H*0.30 + Math.random()*(H*0.55); }
-    else if (zone === 1) { targetX = 20  + Math.random()*120;        targetY = H*0.30 + Math.random()*(H*0.55); }
+    if      (zone === 0) { targetX = W - 160 - Math.random()*80;     targetY = H*0.30 + Math.random()*(H*0.55); }
+    else if (zone === 1) { targetX = 20  + Math.random()*120;         targetY = H*0.30 + Math.random()*(H*0.55); }
     else                 { targetX = W*0.20 + Math.random()*(W*0.55); targetY = H - 140 - Math.random()*80; }
     setTimeout(pickTarget, 12000 + Math.random() * 10000);
   }
   setTimeout(pickTarget, 5000);
 
+  // ── Smooth lerp movement ──
   function animMove() {
-    if (moving && !isOpen) {
+    if (moving && !isOpen && !isDragging) {
       posX += (targetX - posX) * 0.004;
       posY += (targetY - posY) * 0.004;
       buddy.style.left = Math.round(posX) + 'px';
@@ -853,38 +868,92 @@ function initSpaceBuddy() {
   }
   animMove();
 
+  // ── Mouse drag ──
+  chars.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    dragMoved  = false;
+    dragOffX   = e.clientX - posX;
+    dragOffY   = e.clientY - posY;
+    moving     = false;
+    e.preventDefault();
+    // Show "please don't hurt me" message
+    clearInterval(speechInterval);
+    spTxt.textContent = 'أنا هنا لمساعدتك أرجوك لا تؤذيني 🥺';
+    speech.classList.remove('hidden');
+    buddy.style.cursor = 'grabbing';
+    chars.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    dragMoved = true;
+    posX = Math.max(0, Math.min(window.innerWidth  - 145, e.clientX - dragOffX));
+    posY = Math.max(0, Math.min(window.innerHeight - 145, e.clientY - dragOffY));
+    buddy.style.left = Math.round(posX) + 'px';
+    buddy.style.top  = Math.round(posY) + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    buddy.style.cursor = '';
+    chars.style.cursor = 'pointer';
+    targetX = posX;
+    targetY = posY;
+    if (!isOpen) moving = true;
+    // Show thank-you after release
+    spTxt.textContent = 'شكراً لك، أنا بخير! 😊';
+    speech.classList.remove('hidden');
+    setTimeout(hideSpeech, 2200);
+    // Restart periodic speech
+    setTimeout(startSpeechLoop, 3000);
+  });
+
+  // ── Chat panel positioning ──
   function adjustPanelSide() {
     const W = window.innerWidth, H = window.innerHeight;
     const pw = 320, ph = 480;
     let left = posX - pw - 10;
-    if (left < 10) left = posX + 140;
-    let top = posY - ph / 2;
-    if (top < 10) top = 10;
-    if (top + ph > H - 10) top = H - ph - 10;
+    if (left < 10) left = posX + 145;
+    let top  = posY - ph / 2;
+    if (top  < 10)        top = 10;
+    if (top  + ph > H - 10) top = H - ph - 10;
     panel.style.position = 'fixed';
-    panel.style.left   = Math.round(left) + 'px';
-    panel.style.top    = Math.round(top)  + 'px';
-    panel.style.bottom = 'auto';
-    panel.style.right  = 'auto';
+    panel.style.left     = Math.round(left) + 'px';
+    panel.style.top      = Math.round(top)  + 'px';
+    panel.style.bottom   = 'auto';
+    panel.style.right    = 'auto';
   }
+
+  // ── Speech bubble ──
+  let speechInterval = null;
+  let speechHideTimer = null;
 
   function hideSpeech() { speech.classList.add('hidden'); }
 
   function showSpeech() {
-    if (isOpen) { scheduleSpeech(); return; }
+    if (isOpen || isDragging) return;
+    clearTimeout(speechHideTimer);
     spTxt.textContent = BUBBLE_MSGS[msgIdx % BUBBLE_MSGS.length];
     msgIdx++;
     speech.classList.remove('hidden');
-    setTimeout(hideSpeech, 4200);
-    scheduleSpeech();
+    speechHideTimer = setTimeout(hideSpeech, 2300);
   }
-  function scheduleSpeech() { setTimeout(showSpeech, 32000 + Math.random() * 20000); }
-  setTimeout(showSpeech, 7000);
 
+  function startSpeechLoop() {
+    clearInterval(speechInterval);
+    speechInterval = setInterval(showSpeech, 3000);
+    showSpeech();  // show immediately
+  }
+
+  setTimeout(startSpeechLoop, 1500);  // start after 1.5s
+
+  // ── Toggle chat ──
   function toggleChat() {
     isOpen = !isOpen;
     if (isOpen) {
       moving = false;
+      clearInterval(speechInterval);
       adjustPanelSide();
       panel.classList.remove('hidden');
       hideSpeech();
@@ -898,12 +967,23 @@ function initSpaceBuddy() {
     } else {
       moving = true;
       panel.classList.add('hidden');
+      setTimeout(startSpeechLoop, 500);
     }
   }
 
-  chars.addEventListener('click', toggleChat);
-  if (close) close.addEventListener('click', () => { isOpen = false; moving = true; panel.classList.add('hidden'); });
+  chars.addEventListener('click', (e) => {
+    if (dragMoved) { dragMoved = false; return; }
+    toggleChat();
+  });
 
+  if (close) close.addEventListener('click', () => {
+    isOpen = false;
+    moving = true;
+    panel.classList.add('hidden');
+    setTimeout(startSpeechLoop, 500);
+  });
+
+  // ── Chat helpers ──
   function nowTime() {
     return new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
   }
