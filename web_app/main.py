@@ -164,6 +164,124 @@ def compute_dp(detections: list, fw: int, fh: int, n: int = GRID_SIZE):
 
 
 # ─────────────────────────────────────────────────────────
+# Advanced Analysis (computed locally, no AI needed)
+# ─────────────────────────────────────────────────────────
+_ACTION_MAP = {
+    "POTHOLES":          ("إصلاح الحفر الخطيرة في سطح الطريق فوراً",         "فوري",       "immediate"),
+    "CONSTRUCTION_ROAD": ("تأمين منطقة الإنشاء وتحويل مسار المرور",          "فوري",       "immediate"),
+    "SAND_ON_ROAD":      ("إزالة الرمال من سطح الطريق لتجنب الانزلاق",       "فوري",       "immediate"),
+    "BAD_STREETLIGHT":   ("صيانة عمود الإنارة أو استبداله لتحسين الرؤية",    "قصير المدى", "short_term"),
+    "BROKEN_SIGNAGE":    ("استبدال اللافتة التوجيهية المكسورة",               "قصير المدى", "short_term"),
+    "BAD_BILLBOARD":     ("إصلاح أو إزالة اللافتة الإعلانية المتضررة",       "قصير المدى", "short_term"),
+    "UNKEPT_FACADE":     ("ترميم واجهة المبنى وإعادة صيانتها",               "قصير المدى", "short_term"),
+    "CLUTTER_SIDEWALK":  ("إزالة العوائق من الرصيف لإتاحة حركة المشاة",      "قصير المدى", "short_term"),
+    "GARBAGE":           ("جمع النفايات وتنظيف المنطقة",                      "قصير المدى", "short_term"),
+    "GRAFFITI":          ("تنظيف وطلاء الجدران والأسطح المتضررة",             "طويل المدى", "long_term"),
+    "FADED_SIGNAGE":     ("تجديد اللافتات الباهتة وإعادة طلاء الإشارات",     "طويل المدى", "long_term"),
+}
+
+_QUAD_LABELS = {
+    "top_left":     "الجزء العلوي الأيسر",
+    "top_right":    "الجزء العلوي الأيمن",
+    "bottom_left":  "الجزء السفلي الأيسر",
+    "bottom_right": "الجزء السفلي الأيمن",
+}
+
+def compute_advanced_analysis(detections: list, fw: int, fh: int, dp_score: float) -> dict:
+    n = len(detections)
+
+    # Severity breakdown counts
+    sev_breakdown = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    for d in detections:
+        sv = d.get("severity", "low")
+        sev_breakdown[sv] = sev_breakdown.get(sv, 0) + 1
+
+    # Quadrant distribution
+    quads = {"top_left": 0, "top_right": 0, "bottom_left": 0, "bottom_right": 0}
+    for d in detections:
+        cx = (d["x1"] + d["x2"]) / 2
+        cy = (d["y1"] + d["y2"]) / 2
+        h_key = "left"   if cx < fw / 2 else "right"
+        v_key = "top"    if cy < fh / 2 else "bottom"
+        quads[f"{v_key}_{h_key}"] += 1
+
+    # Bounding-box area coverage (% of image)
+    img_area = max(fw * fh, 1)
+    total_box_area = sum(
+        max(0, d["x2"] - d["x1"]) * max(0, d["y2"] - d["y1"])
+        for d in detections
+    )
+    area_pct = round(min(total_box_area / img_area * 100, 100), 1)
+
+    # Clustering (std-dev of normalised bbox centres)
+    if n > 1:
+        cxs = [(d["x1"] + d["x2"]) / 2 / fw for d in detections]
+        cys = [(d["y1"] + d["y2"]) / 2 / fh for d in detections]
+        spread = (float(np.std(cxs)) + float(np.std(cys))) / 2
+        if   spread < 0.12: clustering = "مركّزة في نقطة واحدة"
+        elif spread < 0.28: clustering = "شبه متجمعة"
+        else:               clustering = "موزعة على الصورة"
+    elif n == 1:
+        clustering = "اكتشاف واحد"
+    else:
+        clustering = "لا تشوهات"
+
+    # Priority actions (deduplicated, sorted by severity desc)
+    seen: set = set()
+    priority_actions = []
+    for d in sorted(detections, key=lambda x: SEVERITY_ORDER.index(x.get("severity", "low")), reverse=True):
+        cn = d["class_name"]
+        if cn not in seen:
+            seen.add(cn)
+            am = _ACTION_MAP.get(cn, {
+                "0": f"معالجة {cn.replace('_', ' ')}",
+                "1": "قصير المدى",
+                "2": "short_term",
+            })
+            if isinstance(am, tuple):
+                action_text, urgency_ar, urgency_en = am
+            else:
+                action_text = am.get("0", cn)
+                urgency_ar  = am.get("1", "قصير المدى")
+                urgency_en  = am.get("2", "short_term")
+            priority_actions.append({
+                "rank":       len(priority_actions) + 1,
+                "class_name": cn,
+                "severity":   d.get("severity", "medium"),
+                "action":     action_text,
+                "urgency":    urgency_ar,
+                "urgency_en": urgency_en,
+                "confidence": d["confidence"],
+            })
+
+    # Overall risk assessment
+    if   sev_breakdown["critical"] > 0 or dp_score > 10:
+        risk_level, risk_label = "critical", "حرج — تدخّل فوري لا غنى عنه"
+    elif sev_breakdown["high"]     > 0 or dp_score > 6:
+        risk_level, risk_label = "high",     "مرتفع — يستلزم اهتماماً عاجلاً"
+    elif sev_breakdown["medium"]   > 0 or dp_score > 3:
+        risk_level, risk_label = "medium",   "متوسط — يحتاج متابعة دورية"
+    elif n > 0:
+        risk_level, risk_label = "low",      "منخفض — الحالة مقبولة حالياً"
+    else:
+        risk_level, risk_label = "none",     "لا تشوهات — المنطقة آمنة"
+
+    most_affected = max(quads, key=quads.get) if any(quads.values()) else None
+
+    return {
+        "severity_breakdown":    sev_breakdown,
+        "quadrant_distribution": quads,
+        "most_affected_quadrant": _QUAD_LABELS.get(most_affected, "—") if most_affected else "—",
+        "area_coverage_pct":     area_pct,
+        "priority_actions":      priority_actions[:5],
+        "overall_risk_level":    risk_level,
+        "overall_risk_label":    risk_label,
+        "clustering":            clustering,
+        "unique_classes":        len(seen),
+    }
+
+
+# ─────────────────────────────────────────────────────────
 # Drawing helpers
 # ─────────────────────────────────────────────────────────
 def draw_detections(frame: np.ndarray, detections: list) -> np.ndarray:
@@ -224,7 +342,8 @@ def run_yolo(frame: np.ndarray) -> list:
 # ─────────────────────────────────────────────────────────
 # Claude AI analysis
 # ─────────────────────────────────────────────────────────
-def run_claude(img_bytes: bytes, detections: list, api_key: str) -> str:
+def run_claude(img_bytes: bytes, detections: list, api_key: str,
+               dp_score: float = 0.0, advanced: dict | None = None) -> str:
     if not api_key:
         return ""
     try:
@@ -232,25 +351,52 @@ def run_claude(img_bytes: bytes, detections: list, api_key: str) -> str:
         client = ant.Anthropic(api_key=api_key)
 
         img_b64 = base64.standard_b64encode(img_bytes).decode()
-        det_ctx = (
-            f"YOLO model already detected: {', '.join(set(d['class_name'] for d in detections))}. "
-            if detections else ""
-        )
+
+        if detections:
+            sorted_dets = sorted(detections,
+                                 key=lambda x: SEVERITY_ORDER.index(x.get("severity", "low")),
+                                 reverse=True)
+            det_lines = "\n".join(
+                f"  • {d['class_name'].replace('_',' ')} — ثقة {d['confidence']*100:.0f}% — خطورة: {d['severity']}"
+                for d in sorted_dets
+            )
+            det_ctx = f"التشوهات المكتشفة ({len(detections)} اكتشاف):\n{det_lines}\n"
+        else:
+            det_ctx = "لم يكتشف النموذج أي تشوهات بصرية.\n"
+
+        adv_ctx = ""
+        if advanced:
+            sb = advanced["severity_breakdown"]
+            adv_ctx = (
+                f"درجة خطر المسار الديناميكي (DP): {dp_score:.2f}\n"
+                f"توزيع مستويات الخطورة: حرج={sb['critical']} | مرتفع={sb['high']} | متوسط={sb['medium']} | منخفض={sb['low']}\n"
+                f"نسبة تغطية التشوهات: {advanced['area_coverage_pct']}% من مساحة الصورة\n"
+                f"توزيع التشوهات: {advanced['clustering']}\n"
+                f"المنطقة الأكثر تأثراً: {advanced['most_affected_quadrant']}\n"
+                f"عدد فئات التشوه الفريدة: {advanced['unique_classes']}\n"
+            )
 
         prompt = (
-            "You are a structural engineer analyzing drone imagery for building damage. "
-            f"{det_ctx}"
-            "Analyze this image and provide:\n"
-            "1. Distortion/damage assessment (2-3 sentences)\n"
-            "2. Overall severity: Low / Medium / High / Critical\n"
-            "3. Recommended action\n"
-            "4. Key observations\n\n"
-            "Be concise and technical. Max 180 words."
+            "أنت مهندس مدني وخبير في تقييم البنية التحتية الحضرية من مرئيات الطائرات المسيّرة.\n\n"
+            f"{det_ctx}\n{adv_ctx}\n"
+            "بناءً على بيانات التحليل الآلي والصورة المرفقة، قدّم تقريراً مهنياً شاملاً "
+            "باللغة العربية وفق الهيكل الآتي:\n\n"
+            "## 1. التقييم العام\n"
+            "وصف دقيق للحالة الإجمالية للمنطقة (2-3 جمل).\n\n"
+            "## 2. أبرز المخاطر\n"
+            "أهم المخاطر على السلامة العامة والبنية التحتية مرتبةً تنازلياً.\n\n"
+            "## 3. الأولويات التنفيذية\n"
+            "ثلاثة إجراءات محددة وقابلة للتنفيذ مرتبة حسب الإلحاح.\n\n"
+            "## 4. الجدول الزمني المقترح\n"
+            "فوري (خلال 72 ساعة) / قصير المدى (أسبوع–شهر) / طويل المدى (3–6 أشهر).\n\n"
+            "## 5. التوصية النهائية\n"
+            "جملة واحدة تلخّص أهم قرار يجب اتخاذه.\n\n"
+            "استخدم لغة تقنية مهنية دقيقة. الحد الأقصى 300 كلمة."
         )
 
         msg = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=512,
+            max_tokens=800,
             messages=[{
                 "role": "user",
                 "content": [
@@ -317,6 +463,9 @@ async def detect(
     # DP risk path
     dp_score, dp_path, dp_grid = compute_dp(detections, w, h)
 
+    # Advanced analysis (local, no AI)
+    advanced = compute_advanced_analysis(detections, w, h, dp_score)
+
     # Draw bounding boxes + DP overlay on annotated copy
     annotated = frame.copy()
     annotated = draw_dp_overlay(annotated, dp_path, w, h)
@@ -330,7 +479,7 @@ async def detect(
     _, sbuf = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 85])
 
     api_key = x_api_key or ANTHROPIC_API_KEY
-    claude_text = run_claude(sbuf.tobytes(), detections, api_key)
+    claude_text = run_claude(sbuf.tobytes(), detections, api_key, dp_score, advanced)
 
     # Summary
     class_counts: dict = {}
@@ -341,16 +490,17 @@ async def detect(
             max_sv = d["severity"]
 
     return {
-        "detections":     detections,
-        "count":          len(detections),
-        "class_counts":   class_counts,
-        "max_severity":   max_sv,
-        "dp_score":       round(dp_score, 3),
-        "dp_path":        dp_path,
-        "dp_grid":        dp_grid,
-        "claude_analysis": claude_text,
-        "annotated_image": annotated_b64,
-        "image_size":     {"width": w, "height": h},
+        "detections":        detections,
+        "count":             len(detections),
+        "class_counts":      class_counts,
+        "max_severity":      max_sv,
+        "dp_score":          round(dp_score, 3),
+        "dp_path":           dp_path,
+        "dp_grid":           dp_grid,
+        "advanced_analysis": advanced,
+        "claude_analysis":   claude_text,
+        "annotated_image":   annotated_b64,
+        "image_size":        {"width": w, "height": h},
     }
 
 

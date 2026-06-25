@@ -2,8 +2,9 @@
 
 const API = '';
 
-// ── Session counters ──────────────────────────────────────
+// ── Session counters & history ────────────────────────────
 let sessImages = 0, sessDets = 0, sessHigh = 0;
+const sessionHistory = [];   // last 8 analysis results for trend
 
 function updateSession(count, maxSv) {
   sessImages++;
@@ -394,6 +395,8 @@ function handleFile(file) {
           + (data.count ? ` · ${data.count} اكتشاف` : '');
       }
       updateSession(data.count, data.max_severity);
+      sessionHistory.push({ ts: Date.now(), dp: data.dp_score, count: data.count, maxSv: data.max_severity });
+      if (sessionHistory.length > 8) sessionHistory.shift();
       renderResults(data);
     })
     .catch(err => {
@@ -538,9 +541,16 @@ function renderResults(d) {
     </div>
   </div></div>`;
 
+  // ─ تحليلات متقدمة (محلية — بدون AI)
+  const adv = d.advanced_analysis;
+  if (adv) html += renderAdvancedSection(adv);
+
+  // ─ تحليل الجلسة (اتجاه درجات الخطر)
+  if (sessionHistory.length > 1) html += renderTrendSection();
+
   // ─ تحليل الذكاء الاصطناعي
   if (d.claude_analysis) {
-    html += `<div class="sect"><div class="sect-title">تحليل الذكاء الاصطناعي</div>
+    html += `<div class="sect"><div class="sect-title">🧠 تقرير الذكاء الاصطناعي</div>
     <div class="ai-text">${esc(d.claude_analysis)}</div></div>`;
   }
 
@@ -555,27 +565,190 @@ function renderResults(d) {
     document.querySelectorAll('.class-bar-fill[data-w]').forEach(el => {
       el.style.width = el.dataset.w + '%';
     });
+    document.querySelectorAll('.adv-bar-fill[data-w]').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
 
     // ── رسم شبكة DP
     const grid    = d.dp_grid;
     const path    = new Set(d.dp_path.map(([r,c]) => `${r},${c}`));
     const dpEl    = document.getElementById('dpGrid');
-    if (!dpEl || !grid) return;
-
-    const flat    = grid.flat();
-    const maxVal  = Math.max(...flat, .001);
-    dpEl.innerHTML = '';
-    for (let r = 0; r < grid.length; r++) {
-      for (let c = 0; c < grid[r].length; c++) {
-        const v    = grid[r][c];
-        const norm = v / maxVal;
-        const cell = document.createElement('div');
-        cell.className = 'dp-cell' + (path.has(`${r},${c}`) ? ' path-cell' : '');
-        cell.style.background = dpCellColor(norm);
-        cell.textContent = v > 0 ? v.toFixed(1) : '';
-        dpEl.appendChild(cell);
+    if (dpEl && grid) {
+      const flat   = grid.flat();
+      const maxVal = Math.max(...flat, .001);
+      dpEl.innerHTML = '';
+      for (let r = 0; r < grid.length; r++) {
+        for (let c = 0; c < grid[r].length; c++) {
+          const v    = grid[r][c];
+          const norm = v / maxVal;
+          const cell = document.createElement('div');
+          cell.className = 'dp-cell' + (path.has(`${r},${c}`) ? ' path-cell' : '');
+          cell.style.background = dpCellColor(norm);
+          cell.textContent = v > 0 ? v.toFixed(1) : '';
+          dpEl.appendChild(cell);
+        }
       }
     }
+
+    // ── رسم مخطط الاتجاه
+    drawTrendChart();
+  });
+}
+
+// ── Advanced analysis section ─────────────────────────────
+const URGENCY_CLASS = { 'فوري': 'urgent-immediate', 'قصير المدى': 'urgent-short', 'طويل المدى': 'urgent-long' };
+
+function renderAdvancedSection(adv) {
+  const sb = adv.severity_breakdown;
+  const svColors = { critical:'var(--sv-critical)', high:'var(--sv-high)', medium:'var(--sv-medium)', low:'var(--sv-low)' };
+  const svAr2    = { critical:'حرج', high:'مرتفع', medium:'متوسط', low:'منخفض' };
+  const totalSv  = Object.values(sb).reduce((a,b) => a+b, 0) || 1;
+
+  // ─ كتلة الخطر الإجمالي
+  let html = `
+  <div class="sect">
+    <div class="sect-title">📊 التحليل المتقدم</div>
+    <div class="adv-risk-banner ${adv.overall_risk_level}">
+      <div class="adv-risk-icon">${{none:'✅',low:'🟢',medium:'🟡',high:'🔴',critical:'🚨'}[adv.overall_risk_level]||'⚠️'}</div>
+      <div class="adv-risk-body">
+        <div class="adv-risk-label">${adv.overall_risk_label}</div>
+        <div class="adv-risk-meta">${adv.clustering} · يغطي ${adv.area_coverage_pct}% من الصورة · المنطقة الأكثر تأثراً: ${adv.most_affected_quadrant}</div>
+      </div>
+    </div>`;
+
+  // ─ توزيع الخطورة
+  html += `<div class="adv-sev-row">`;
+  for (const [sv, cnt] of Object.entries(sb)) {
+    const pct = Math.round(cnt / totalSv * 100);
+    html += `
+    <div class="adv-sev-cell ${sv}">
+      <div class="adv-sev-count">${cnt}</div>
+      <div class="adv-sev-label">${svAr2[sv]}</div>
+      <div class="adv-sev-bar-wrap"><div class="adv-bar-fill" data-w="${pct}" style="width:0%;background:${svColors[sv]}"></div></div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // ─ خريطة الأرباع
+  const qd = adv.quadrant_distribution;
+  const maxQ = Math.max(...Object.values(qd), 1);
+  const qLabels = { top_left:'↖', top_right:'↗', bottom_left:'↙', bottom_right:'↘' };
+  html += `
+  <div class="adv-quad-wrap">
+    <div class="adv-quad-title">توزيع التشوهات على الصورة</div>
+    <div class="adv-quad-grid">
+      ${['top_left','top_right','bottom_left','bottom_right'].map(k => {
+        const v = qd[k]; const norm = v / maxQ;
+        return `<div class="adv-quad-cell" style="--qi:${norm.toFixed(2)}">
+          <span class="adv-quad-arrow">${qLabels[k]}</span>
+          <span class="adv-quad-val">${v}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  // ─ خطة الإجراءات المرتبة
+  if (adv.priority_actions && adv.priority_actions.length > 0) {
+    html += `<div class="adv-actions-title">خطة الإجراءات المقترحة</div><div class="adv-action-list">`;
+    for (const a of adv.priority_actions) {
+      const uc = URGENCY_CLASS[a.urgency] || 'urgent-short';
+      html += `
+      <div class="adv-action-item ${uc}">
+        <div class="adv-action-rank">${a.rank}</div>
+        <div class="adv-action-body">
+          <div class="adv-action-text">${a.action}</div>
+          <div class="adv-action-meta">
+            <span class="badge ${a.severity}">${{critical:'حرج',high:'مرتفع',medium:'متوسط',low:'منخفض'}[a.severity]||a.severity}</span>
+            <span class="adv-urgency-tag ${uc}">${a.urgency}</span>
+            <span class="adv-conf">${(a.confidence*100).toFixed(0)}% ثقة</span>
+          </div>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+// ── Session trend section ─────────────────────────────────
+function renderTrendSection() {
+  const prev = sessionHistory[sessionHistory.length - 2];
+  const curr = sessionHistory[sessionHistory.length - 1];
+  const delta = curr.dp - prev.dp;
+  const arrow = delta > 0.5 ? '↑' : delta < -0.5 ? '↓' : '→';
+  const arrowCls = delta > 0.5 ? 'trend-up' : delta < -0.5 ? 'trend-down' : 'trend-flat';
+
+  return `
+  <div class="sect">
+    <div class="sect-title">📈 اتجاه جلسة الفحص (${sessionHistory.length} صور)</div>
+    <div class="trend-wrap">
+      <canvas id="trendChart" class="trend-canvas" width="340" height="80"></canvas>
+      <div class="trend-delta ${arrowCls}">
+        ${arrow} ${Math.abs(delta).toFixed(1)}
+        <span class="trend-delta-lbl">${delta > 0.5 ? 'ارتفاع الخطر' : delta < -0.5 ? 'انخفاض الخطر' : 'مستقر'}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function drawTrendChart() {
+  const canvas = document.getElementById('trendChart');
+  if (!canvas || sessionHistory.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const pad = 12;
+  const scores = sessionHistory.map(s => s.dp);
+  const maxV = Math.max(...scores, 1);
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(0,212,255,.08)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const y = pad + (H - pad*2) * (i / 4);
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
+  }
+
+  // Gradient fill under line
+  const pts = scores.map((v, i) => ({
+    x: pad + i / (scores.length - 1) * (W - pad*2),
+    y: pad + (1 - v / maxV) * (H - pad*2),
+  }));
+
+  const grad = ctx.createLinearGradient(0, pad, 0, H - pad);
+  grad.addColorStop(0,   'rgba(0,212,255,.35)');
+  grad.addColorStop(1,   'rgba(0,212,255,.00)');
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, H - pad);
+  pts.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(pts[pts.length-1].x, H - pad);
+  ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = '#00D4FF'; ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+  ctx.stroke();
+
+  // Dots
+  pts.forEach((p, i) => {
+    const isLast = i === pts.length - 1;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, isLast ? 4.5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = isLast ? '#fff' : '#00D4FF';
+    ctx.fill();
+    if (isLast) {
+      ctx.strokeStyle = '#00D4FF'; ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    // Score label
+    ctx.fillStyle = 'rgba(237,242,255,.7)';
+    ctx.font = '9px Consolas,monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(scores[i].toFixed(1), p.x, p.y - 7);
   });
 }
 
