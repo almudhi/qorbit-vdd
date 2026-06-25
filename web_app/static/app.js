@@ -1,4 +1,4 @@
-/* QORBIT Tech Solutions — Visual Distortion Detection v2.0 */
+﻿/* QORBIT Tech Solutions — Visual Distortion Detection v2.0 */
 
 const API = '';
 
@@ -626,49 +626,124 @@ const CHAT_KB = [
     q:['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','كيف أفعّل AI Vision؟'] }
 ];
 
-function initChatbot() {
-  const fab   = document.getElementById('chatFab');
-  const panel = document.getElementById('chatPanel');
-  const close = document.getElementById('chatClose');
-  const msgs  = document.getElementById('chatMsgs');
-  const quick = document.getElementById('chatQuick');
-  const input = document.getElementById('chatInput');
-  const send  = document.getElementById('chatSend');
-  if (!fab) return;
+const BUBBLE_MSGS = [
+  'هل تحتاج مساعدة؟ 👋',
+  'جرّب رفع صورة! 📸',
+  'اسألني عن النظام 🤖',
+  'أنا هنا من الفضاء! 🚀',
+  'ما هي التشوهات؟ 🔍',
+  'يمكنني مساعدتك! 👾',
+];
 
-  let isOpen = false;
-  const notif = fab.querySelector('.chat-notif');
+function initSpaceBuddy() {
+  const buddy  = document.getElementById('spaceBuddy');
+  const chars  = document.getElementById('sbChars');
+  const speech = document.getElementById('sbSpeech');
+  const spTxt  = document.getElementById('sbSpeechTxt');
+  const panel  = document.getElementById('chatPanel');
+  const close  = document.getElementById('chatClose');
+  const msgs   = document.getElementById('chatMsgs');
+  const quick  = document.getElementById('chatQuick');
+  const input  = document.getElementById('chatInput');
+  const send   = document.getElementById('chatSend');
+  if (!buddy) return;
 
-  function toggle() {
+  let isOpen = false, welcomed = false;
+  let posX = window.innerWidth  - 180;
+  let posY = window.innerHeight - 180;
+  let targetX = posX, targetY = posY;
+  let moving = true, msgIdx = 0;
+
+  buddy.style.position = 'fixed';
+  buddy.style.left = posX + 'px';
+  buddy.style.top  = posY + 'px';
+  buddy.style.zIndex = '9000';
+
+  function pickTarget() {
+    const W = window.innerWidth, H = window.innerHeight;
+    const zone = Math.floor(Math.random() * 3);
+    if (zone === 0)      { targetX = W - 160 - Math.random()*80;    targetY = H*0.30 + Math.random()*(H*0.55); }
+    else if (zone === 1) { targetX = 20  + Math.random()*120;        targetY = H*0.30 + Math.random()*(H*0.55); }
+    else                 { targetX = W*0.20 + Math.random()*(W*0.55); targetY = H - 140 - Math.random()*80; }
+    setTimeout(pickTarget, 12000 + Math.random() * 10000);
+  }
+  setTimeout(pickTarget, 5000);
+
+  function animMove() {
+    if (moving && !isOpen) {
+      posX += (targetX - posX) * 0.004;
+      posY += (targetY - posY) * 0.004;
+      buddy.style.left = Math.round(posX) + 'px';
+      buddy.style.top  = Math.round(posY) + 'px';
+    }
+    requestAnimationFrame(animMove);
+  }
+  animMove();
+
+  function adjustPanelSide() {
+    const W = window.innerWidth, H = window.innerHeight;
+    const pw = 320, ph = 480;
+    let left = posX - pw - 10;
+    if (left < 10) left = posX + 140;
+    let top = posY - ph / 2;
+    if (top < 10) top = 10;
+    if (top + ph > H - 10) top = H - ph - 10;
+    panel.style.position = 'fixed';
+    panel.style.left   = Math.round(left) + 'px';
+    panel.style.top    = Math.round(top)  + 'px';
+    panel.style.bottom = 'auto';
+    panel.style.right  = 'auto';
+  }
+
+  function hideSpeech() { speech.classList.add('hidden'); }
+
+  function showSpeech() {
+    if (isOpen) { scheduleSpeech(); return; }
+    spTxt.textContent = BUBBLE_MSGS[msgIdx % BUBBLE_MSGS.length];
+    msgIdx++;
+    speech.classList.remove('hidden');
+    setTimeout(hideSpeech, 4200);
+    scheduleSpeech();
+  }
+  function scheduleSpeech() { setTimeout(showSpeech, 32000 + Math.random() * 20000); }
+  setTimeout(showSpeech, 7000);
+
+  function toggleChat() {
     isOpen = !isOpen;
     if (isOpen) {
+      moving = false;
+      adjustPanelSide();
       panel.classList.remove('hidden');
-      if (notif) notif.style.display = 'none';
-      if (msgs.children.length === 0) {
-        botReply('مرحباً! أنا مساعد QORBIT 🤖\nيمكنني مساعدتك في استخدام نظام كشف التشوه البصري. اختر سؤالاً أو اكتب ما يخطر ببالك!',
-          ['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','كيف أفعّل AI Vision؟']);
+      hideSpeech();
+      if (!welcomed) {
+        welcomed = true;
+        botReply(
+          'أهلاً بك في QORBIT! 👾🚀\nأنا وزميلي رائد الفضاء هنا لمساعدتك في كشف التشوهات البصرية.\nاختر سؤالاً أو اكتب ما تريد!',
+          ['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','كيف أفعّل AI Vision؟']
+        );
       }
     } else {
+      moving = true;
       panel.classList.add('hidden');
     }
   }
 
-  fab.addEventListener('click', toggle);
-  close.addEventListener('click', toggle);
+  chars.addEventListener('click', toggleChat);
+  if (close) close.addEventListener('click', () => { isOpen = false; moving = true; panel.classList.add('hidden'); });
 
   function nowTime() {
-    return new Date().toLocaleTimeString('ar', {hour:'2-digit', minute:'2-digit'});
+    return new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
   }
 
   function addBubble(text, isBot) {
     const d = document.createElement('div');
-    d.className = `chat-msg ${isBot ? 'bot' : 'user'}`;
-    d.innerHTML = `<div class="chat-bubble">${esc(text)}</div><div class="chat-time">${nowTime()}</div>`;
+    d.className = 'chat-msg ' + (isBot ? 'bot' : 'user');
+    d.innerHTML = '<div class="chat-bubble">' + esc(text) + '</div><div class="chat-time">' + nowTime() + '</div>';
     msgs.appendChild(d);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  function setQuickReplies(qs) {
+  function setQR(qs) {
     quick.innerHTML = '';
     (qs || []).forEach(q => {
       const b = document.createElement('button');
@@ -679,13 +754,13 @@ function initChatbot() {
   }
 
   function botReply(text, qs) {
-    setTimeout(() => { addBubble(text, true); setQuickReplies(qs || []); }, 310);
+    setTimeout(() => { addBubble(text, true); setQR(qs || []); }, 310);
   }
 
   function handleSend(text) {
     text = text.trim(); if (!text) return;
     addBubble(text, false);
-    input.value = ''; setQuickReplies([]);
+    input.value = ''; setQR([]);
     const low = text.toLowerCase();
     let best = null, bestScore = 0;
     for (const entry of CHAT_KB) {
@@ -693,14 +768,16 @@ function initChatbot() {
       if (sc > bestScore) { bestScore = sc; best = entry; }
     }
     if (best && bestScore > 0) botReply(best.r, best.q);
-    else botReply('لم أفهم سؤالك تماماً 😅\nجرّب أحد الأسئلة الشائعة أدناه:',
-      ['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','ما معنى درجة الخطر؟','كيف أفعّل AI Vision؟']);
+    else botReply(
+      'لم أفهم سؤالك تماماً 😅\nجرّب أحد الأسئلة الشائعة أدناه:',
+      ['كيف أرفع صورة؟','ما هي التشوهات المكتشفة؟','ما معنى درجة الخطر؟','كيف أفعّل AI Vision؟']
+    );
   }
 
-  send.addEventListener('click', () => handleSend(input.value));
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') handleSend(input.value); });
+  if (send)  send.addEventListener('click',    () => handleSend(input.value));
+  if (input) input.addEventListener('keydown', e  => { if (e.key === 'Enter') handleSend(input.value); });
 }
 
 // ── Init ──────────────────────────────────────────────────
 checkHealth();
-initChatbot();
+initSpaceBuddy();
