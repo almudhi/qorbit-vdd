@@ -1,3 +1,12 @@
+---
+title: QORBIT Visual Distortion Detection
+emoji: 🛸
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # مشروع رصد التشوه البصري بالدرون والذكاء الاصطناعي
 ### Drone Visual Distortion Detection + DP Path Optimizer
 
