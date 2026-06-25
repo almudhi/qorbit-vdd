@@ -803,11 +803,12 @@ main { padding:1.4rem; max-width:1380px; margin:0 auto; }
   display:flex; flex-direction:column; align-items:center;
   text-decoration:none; color:inherit;
 }
-.ts-card-link:hover .ts-link-hint { opacity:1; transform:translateY(0); }
+.ts-card-link:hover .ts-link-hint { background:rgba(0,212,255,.1); }
 .ts-link-hint {
   margin-top:.45rem; font-size:.68rem; color:var(--quantum-cyan);
-  opacity:0; transform:translateY(4px); transition:opacity .25s, transform .25s;
-  letter-spacing:.04em;
+  opacity:1; letter-spacing:.04em;
+  border:1px solid rgba(0,212,255,.25); border-radius:20px;
+  padding:.18rem .65rem;
 }
 
 /* الأفاتار */
